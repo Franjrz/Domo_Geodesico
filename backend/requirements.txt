@@ -2,8 +2,5 @@ fastapi==0.104.1
 uvicorn==0.24.0
 pydantic==2.4.2
 python-multipart==0.0.6
-<<<<<<< HEAD
-=======
 reportlab==4.0.4
 numpy==1.26.1
->>>>>>> 40143b4a9a8e37ee2dbf53e26c63feefa92b4e01
