@@ -1,65 +1,145 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Domo Geodesico</title>
+    <title>Domo Geodésico</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 800px;
+            max-width: 1000px;
             margin: 0 auto;
             padding: 20px;
+            line-height: 1.6;
         }
-        h1 {
+        h1, h2 {
             color: #333;
         }
-        #api-response {
-            background-color: #f4f4f4;
-            padding: 15px;
-            border-radius: 5px;
-            margin-top: 20px;
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .controls {
+            flex: 1;
+            min-width: 300px;
+            background-color: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .results {
+            flex: 2;
+            min-width: 300px;
+        }
+        select, input, button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
         }
         button {
             background-color: #4CAF50;
             color: white;
-            padding: 10px 15px;
             border: none;
-            border-radius: 4px;
             cursor: pointer;
-            font-size: 16px;
-            margin-top: 10px;
+            font-weight: bold;
         }
         button:hover {
             background-color: #45a049;
         }
+        pre {
+            background-color: #f8f8f8;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .error {
+            color: red;
+            background-color: #ffeeee;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
     </style>
 </head>
 <body>
-    <h1>Domo Geodesico</h1>
-    <p>This is a simple frontend to test the connection with the FastAPI backend.</p>
+    <h1>Generador de Domo Geodésico</h1>
+    <p>Esta aplicación permite generar puntos para un domo geodésico basado en sólidos platónicos.</p>
     
-    <button id="fetch-data">Fetch Data from API</button>
-    
-    <div id="api-response">
-        <p>API response will appear here...</p>
+    <div class="container">
+        <div class="controls">
+            <h2>Parámetros</h2>
+            <label for="tipo-solido">Tipo de Sólido Platónico:</label>
+            <select id="tipo-solido">
+                <option value="tetraedro">Tetraedro (4 caras)</option>
+                <option value="cubo">Cubo (6 caras)</option>
+                <option value="octaedro">Octaedro (8 caras)</option>
+                <option value="dodecaedro">Dodecaedro (12 caras)</option>
+                <option value="icosaedro">Icosaedro (20 caras)</option>
+            </select>
+            
+            <label for="escala">Escala:</label>
+            <input type="number" id="escala" value="1.0" step="0.1" min="0.1">
+            
+            <button id="generar">Generar Domo</button>
+            
+            <div class="error" id="error-message"></div>
+        </div>
+        
+        <div class="results">
+            <h2>Resultados</h2>
+            <div class="loading" id="loading">Generando domo...</div>
+            <pre id="resultado">Los resultados se mostrarán aquí...</pre>
+        </div>
     </div>
-
+    
     <script>
-        document.getElementById('fetch-data').addEventListener('click', async () => {
+        document.getElementById('generar').addEventListener('click', async () => {
+            const tipoSolido = document.getElementById('tipo-solido').value;
+            const escala = parseFloat(document.getElementById('escala').value);
+            
+            const loading = document.getElementById('loading');
+            const resultado = document.getElementById('resultado');
+            const errorMessage = document.getElementById('error-message');
+            
+            loading.style.display = 'block';
+            resultado.textContent = 'Generando...';
+            errorMessage.style.display = 'none';
+            
             try {
-                const response = await fetch('/api/example');
-                const data = await response.json();
+                const response = await fetch('/api/generar-domo', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        tipo_solido: tipoSolido,
+                        escala: escala
+                    })
+                });
                 
-                document.getElementById('api-response').innerHTML = `
-                    <h3>API Response:</h3>
-                    <pre>${JSON.stringify(data, null, 2)}</pre>
-                `;
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Error al generar el domo');
+                }
+                
+                const data = await response.json();
+                resultado.textContent = JSON.stringify(data, null, 2);
             } catch (error) {
-                document.getElementById('api-response').innerHTML = `
-                    <h3>Error:</h3>
-                    <p>${error.message}</p>
-                `;
+                errorMessage.textContent = `Error: ${error.message}`;
+                errorMessage.style.display = 'block';
+                resultado.textContent = 'Ocurrió un error al generar el domo.';
+            } finally {
+                loading.style.display = 'none';
             }
         });
     </script>
