@@ -1,64 +1,24 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
-from utils import *
-
-def generar_triangulo_base_alternado(frecuencia):
+def calcular_punto_medio(puntos):
     """
-    Genera los puntos de un triángulo equilátero con una frecuencia determinada.
-    Los puntos se distribuyen de manera uniforme dentro del triángulo y se calculan
-    las aristas entre puntos adyacentes.
+    Calcula el punto medio de un conjunto de puntos usando NumPy para optimización.
     
     Args:
-        frecuencia: La frecuencia de división del triángulo
+        puntos: Lista de tuplas (x, y) que representan las coordenadas de los puntos
         
     Returns:
-        - Un diccionario de puntos donde la clave es str(i) + "_" + str(j) y el valor 
-          son las coordenadas (x,y)
-        - Una lista con los IDs de los vértices exteriores del triángulo completo
-        - Un diccionario donde las claves son los ids de los puntos y los valores
-          son listas con los ids de los puntos adyacentes
+        Tupla (x, y) con las coordenadas del punto medio
     """
-    # Factores de escala
-    factor_x = 1/(2*frecuencia)
-    factor_y = factor_x * np.sqrt(3)
+    # Convertir a array de NumPy y calcular la media
+    puntos_array = np.array(puntos)
+    punto_medio = puntos_array.mean(axis=0)
     
-    # Inicializar el diccionario de puntos
-    puntos = {}
-    
-    # Lista para almacenar los IDs de los vértices del triángulo completo
-    vertices = ["0_0", "0_" + str(frecuencia), str(frecuencia) + "_0"]
-    
-    # Diccionario para almacenar las aristas
-    aristas = {}
-    
-    # Generar todos los puntos
-    for i in range(frecuencia + 1):
-        for j in range(frecuencia + 1 - i):
-            # Generar el ID del punto
-            punto_id = str(i) + "_" + str(j)
+    # Devolver como tupla para mantener consistencia
+    return tuple(punto_medio)
 
-            # Calcular coordenadas
-            x = factor_x * (i + 2 * j)
-            y = factor_y * i
-            
-            # Almacenar en el diccionario
-            puntos[punto_id] = (x, y)
-
-            # Generar y seleccionar aristas
-            a_derecha = [str(i) + "_" + str(j+1)] * (i+j != frecuencia)
-            a_arriba_derecha = [str(i+1) + "_" + str(j)] * (i+j != frecuencia)
-            a_arriba_izquierda = [str(i+1) + "_" + str(j-1)] * (j != 0)
-            a_izquierda = [str(i) + "_" + str(j-1)] * (j != 0)
-            a_debajo_izquierda = [str(i-1) + "_" + str(j)] * (i != 0)
-            a_debajo_derecha = [str(i-1) + "_" + str(j+1)] * (i != 0)
-            
-            # Inicializar la lista de aristas para este punto
-            aristas[punto_id] = a_derecha + a_arriba_derecha + a_arriba_izquierda + \
-                a_izquierda + a_debajo_izquierda + a_debajo_derecha
-    
-    return puntos, vertices, aristas
-
-def subdividir_triangulo_punto_medio(ids_triangulo, puntos, id_contador):
+def subdividir_triangulo(ids_triangulo, puntos, id_contador):
     """
     Subdivide un triángulo en 3 triángulos utilizando el punto medio.
     
@@ -81,7 +41,7 @@ def subdividir_triangulo_punto_medio(ids_triangulo, puntos, id_contador):
     punto_medio = calcular_punto_medio(coords_triangulo)
     
     # Asignar ID al nuevo punto (punto medio)
-    id_punto_medio = str(id_contador)
+    id_punto_medio = id_contador
     id_contador += 1
     
     # Añadir el nuevo punto al diccionario
@@ -94,13 +54,13 @@ def subdividir_triangulo_punto_medio(ids_triangulo, puntos, id_contador):
     
     return [triangulo1, triangulo2, triangulo3], puntos, id_contador, id_punto_medio
 
-def generar_triangulo_base_punto_medio(frecuencia):
+def triangulacion_iterativa(triangulo_inicial, nivel_max):
     """
     Realiza la triangulación de manera iterativa hasta un nivel máximo.
     
     Args:
         triangulo_inicial: Lista de 3 tuplas (x, y) que representan los vértices del triángulo inicial
-        frecuencia: Número máximo de niveles de subdivisión
+        nivel_max: Número máximo de niveles de subdivisión
         
     Returns:
         Tupla con tres elementos:
@@ -108,35 +68,32 @@ def generar_triangulo_base_punto_medio(frecuencia):
         - vertices: Lista con los IDs de los 3 vértices principales originales
         - adyacencias: Diccionario {id: [id1, id2, ...]} con las conexiones entre puntos
     """
-    # Generar triangulo inicial
-    triangulo_inicial = [(0,0), (1,0), (0.5, np.sqrt(3)/2)]
-
     # Inicializar el diccionario de puntos con los vértices originales
-    puntos = {"0": triangulo_inicial[0], "1": triangulo_inicial[1], "2": triangulo_inicial[2]}
+    puntos = {0: triangulo_inicial[0], 1: triangulo_inicial[1], 2: triangulo_inicial[2]}
     
     # Guardar los IDs de los vértices principales
-    vertices = ["0", "1", "2"]
+    vertices = [0, 1, 2]
     
     # Inicializar con el triángulo inicial (usando IDs)
-    triangulos_actuales = [["0", "1", "2"]]
+    triangulos_actuales = [[0, 1, 2]]
     
     # Inicializar contador para nuevos IDs
     id_contador = 3
     
     # Inicializar diccionario de adyacencias
-    adyacencias = {"0": ["1", "2"], "1": ["0", "2"], "2": ["0", "1"]}
+    adyacencias = {0: [1, 2], 1: [0, 2], 2: [0, 1]}
     
     # Si no hay subdivisiones, devolver directamente
-    if frecuencia == 1:
+    if nivel_max == 0:
         return puntos, vertices, adyacencias
     
     # Procesar cada nivel
-    for nivel in range(frecuencia-1):
+    for nivel in range(nivel_max):
         nuevos_triangulos = []
         
         # Subdividir cada triángulo del nivel actual
         for triangulo in triangulos_actuales:
-            nuevos_triangs, puntos, id_contador, id_medio = subdividir_triangulo_punto_medio(triangulo, puntos, id_contador)
+            nuevos_triangs, puntos, id_contador, id_medio = subdividir_triangulo(triangulo, puntos, id_contador)
             nuevos_triangulos.extend(nuevos_triangs)
             
             # Actualizar adyacencias

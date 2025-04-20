@@ -3,7 +3,7 @@ import numpy as np
 from utils import *
 from triangulos_base import *
 
-def renombrar_puntos_alternado(puntos, cara):
+def renombrar_puntos(puntos, cara):
     """
     Renombra las claves de un diccionario de puntos añadiendo el prefijo del número de cara.
     
@@ -16,7 +16,7 @@ def renombrar_puntos_alternado(puntos, cara):
     """
     return {str(cara) + "_" + id : puntos[id] for id in puntos.keys()}
 
-def renombrar_vertices_alternado(vertices, cara):
+def renombrar_vertices(vertices, cara):
     """
     Renombra los identificadores de vértices añadiendo el prefijo del número de cara.
     
@@ -29,7 +29,7 @@ def renombrar_vertices_alternado(vertices, cara):
     """
     return [str(cara) + "_" + id for id in vertices]
 
-def renombrar_aristas_alternado(aristas, cara):
+def renombrar_aristas(aristas, cara):
     """
     Renombra las claves y valores de un diccionario de aristas añadiendo el prefijo del número de cara.
     
@@ -85,9 +85,9 @@ def fusionar_triangulos_base_alternado(frecuencia, lados):
         )
         
         # Renombrar puntos, vértices y aristas con el prefijo de la cara actual
-        subpuntos_base = renombrar_puntos_alternado(subpuntos_base, i)
-        subvertices_base = renombrar_vertices_alternado(vertices_base, i)
-        subaristas_base = renombrar_aristas_alternado(aristas_base, i)
+        subpuntos_base = renombrar_puntos(subpuntos_base, i)
+        subvertices_base = renombrar_vertices(vertices_base, i)
+        subaristas_base = renombrar_aristas(aristas_base, i)
         
         # Guardar la información de esta subcara
         subcaras.append({"p": subpuntos_base, "v": subvertices_base, "a": subaristas_base})
@@ -170,5 +170,91 @@ def fusionar_triangulos_base_alternado(frecuencia, lados):
         # Añadir aristas
         for punto_cara in subcaras[c]["a"].keys():
             aristas[punto_cara] = subcaras[c]["a"][punto_cara]
+    
+    return puntos, vertices, aristas
+
+def fusionar_triangulos_base_punto_medio(frecuencia, lados):
+    """
+    Genera una estructura geométrica formada por la unión de múltiples triángulos base,
+    organizados en un polígono de N lados.
+    
+    Args:
+        frecuencia: Determina la densidad de puntos en cada triángulo base
+        lados: Número de lados del polígono (número de triángulos base a fusionar)
+        
+    Returns:
+        Tupla con tres elementos:
+        - puntos: Diccionario de puntos con sus coordenadas
+        - vertices: Lista de identificadores de los vértices principales
+        - aristas: Diccionario que define las conexiones entre puntos
+    """
+    # Genera la triangulación del polígono de N lados
+    subcaras_base = generar_triangulacion_poligono(lados)
+    
+    # Genera el triángulo base con la frecuencia indicada
+    puntos_base, vertices_base, aristas_base = generar_triangulo_base_punto_medio(frecuencia)
+    
+    # Si solo se pide un triángulo, devuelve directamente el triángulo base
+    if lados == 3:
+        return puntos_base, vertices_base, aristas_base
+
+    # Transformar y renombrar elementos por caras
+    puntos = {}
+    vertices = []
+    aristas = {}
+    for i in range(len(subcaras_base)):
+        # Transformar los puntos del triángulo base según las coordenadas baricéntricas
+        # de la subcara actual
+        subpuntos_base = transformar_puntos_baricentricos(
+            puntos_base, 
+            [puntos_base[vb] for vb in vertices_base], 
+            subcaras_base[i]
+        )
+        
+        # Renombrar puntos, vértices y aristas con el prefijo de la cara actual
+        subpuntos_base = renombrar_puntos(subpuntos_base, i)
+        puntos = puntos | subpuntos_base
+        subvertices_base = renombrar_vertices(vertices_base, i)
+        vertices += subvertices_base
+        subaristas_base = renombrar_aristas(aristas_base, i)
+        aristas = aristas | subaristas_base
+        
+    # Conectar todos los puntos a un solo punto central
+    id_punto_central = "0_2"
+    vertices.remove(id_punto_central)
+    for i in range(1, lados):
+        sig_centro = str(i) + "_2"
+        aristas[id_punto_central] += aristas[sig_centro]
+
+        for j in aristas[sig_centro]:
+            aristas[j].append(id_punto_central)
+
+        del aristas[sig_centro]
+        vertices.remove(sig_centro)
+        del puntos[sig_centro]
+
+        for j in aristas.keys():
+            if sig_centro in aristas[j]:
+                aristas[j].remove(sig_centro)
+
+    for i in range(lados):
+        id = i
+        id_anterior = (i - 1) % lados  # Cara anterior (vuelve a la primera al final)
+
+        anterior_derecha = str(id_anterior) + "_1"
+        actual_izquierda = str(id) + "_0"
+        conexiones_anterior_derecha = aristas[anterior_derecha]
+        conexiones_anterior_derecha.remove("0_2")
+        aristas[actual_izquierda] += conexiones_anterior_derecha
+
+        for j in conexiones_anterior_derecha:
+            aristas[j].append(actual_izquierda)
+            aristas[j].remove(anterior_derecha)
+
+        del aristas[anterior_derecha]
+        vertices.remove(anterior_derecha)
+        del puntos[anterior_derecha]
+        aristas[id_punto_central].remove(anterior_derecha)
+
     
     return puntos, vertices, aristas

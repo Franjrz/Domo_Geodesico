@@ -124,3 +124,20 @@ def generar_triangulacion_poligono(n_lados):
         triangulos.append(triangulo)
     
     return triangulos
+
+def calcular_punto_medio(puntos):
+    """
+    Calcula el punto medio de un conjunto de puntos usando NumPy para optimización.
+    
+    Args:
+        puntos: Lista de tuplas (x, y) que representan las coordenadas de los puntos
+        
+    Returns:
+        Tupla (x, y) con las coordenadas del punto medio
+    """
+    # Convertir a array de NumPy y calcular la media
+    puntos_array = np.array(puntos)
+    punto_medio = puntos_array.mean(axis=0)
+    
+    # Devolver como tupla para mantener consistencia
+    return tuple(punto_medio)
