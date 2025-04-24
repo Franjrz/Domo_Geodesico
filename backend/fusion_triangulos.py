@@ -1,5 +1,3 @@
-import numpy as np
-
 from utils import *
 from triangulos_base import *
 
@@ -48,132 +46,70 @@ def renombrar_aristas(aristas, cara):
 
     return nuevas_aristas
 
-def fusionar_triangulos_base_alternado(frecuencia, lados):
-    """
-    Genera una estructura geométrica formada por la unión de múltiples triángulos base,
-    organizados en un polígono de N lados.
-    
-    Args:
-        frecuencia: Determina la densidad de puntos en cada triángulo base
-        lados: Número de lados del polígono (número de triángulos base a fusionar)
-        
-    Returns:
-        Tupla con tres elementos:
-        - puntos: Diccionario de puntos con sus coordenadas
-        - vertices: Lista de identificadores de los vértices principales
-        - aristas: Diccionario que define las conexiones entre puntos
-    """
-    # Genera la triangulación del polígono de N lados
-    subcaras_base = generar_triangulacion_poligono(lados)
-    
-    # Genera el triángulo base con la frecuencia indicada
-    puntos_base, vertices_base, aristas_base = generar_triangulo_base_alternado(frecuencia)
-    
-    # Si solo se pide un triángulo, devuelve directamente el triángulo base
-    if lados == 3:
-        return puntos_base, vertices_base, aristas_base
+generar_triangulo_base = [generar_triangulo_base_alternado, 
+                          generar_triangulo_base_punto_medio,
+                          generar_triangulo_base_triacon]
 
-    # Transformar y renombrar elementos por caras
-    subcaras = []
-    for i in range(len(subcaras_base)):
-        # Transformar los puntos del triángulo base según las coordenadas baricéntricas
-        # de la subcara actual
-        subpuntos_base = transformar_puntos_baricentricos(
-            puntos_base, 
-            [puntos_base[vb] for vb in vertices_base], 
-            subcaras_base[i]
-        )
-        
-        # Renombrar puntos, vértices y aristas con el prefijo de la cara actual
-        subpuntos_base = renombrar_puntos(subpuntos_base, i)
-        subvertices_base = renombrar_vertices(vertices_base, i)
-        subaristas_base = renombrar_aristas(aristas_base, i)
-        
-        # Guardar la información de esta subcara
-        subcaras.append({"p": subpuntos_base, "v": subvertices_base, "a": subaristas_base})
+def obtener_fila_izquierda_alternado(frecuencia, lado):
+    return [str(lado) + "_" + str(i) + "_" + str(frecuencia - i) for i in range(frecuencia)]
+
+def obtener_fila_derecha_alternado(frecuencia, lado):
+    return [str(lado) + "_" + str(i) + "_0" for i in range(frecuencia)]
+
+def obtener_fila_izquierda_punto_medio(frecuencia, lado):
+    return [str(lado) + "_1"]
+
+def obtener_fila_derecha_punto_medio(frecuencia, lado):
+    return [str(lado) + "_0"]
+
+def obtener_fila_izquierda_triacon(frecuencia, lado):
+    return [str(lado) + "_1"] + [str(lado) + "_1_" + str(i) for i in range(2**frecuencia-1)]
+
+def obtener_fila_derecha_triacon(frecuencia, lado):
+    return [str(lado) + "_0"] + [str(lado) + "_2_" + str(i) for i in range(2**frecuencia-2, -1, -1)]
+
+generar_fila_derecha = [obtener_fila_derecha_alternado,
+                        obtener_fila_derecha_punto_medio,
+                        obtener_fila_derecha_triacon]
+
+generar_fila_izquierda = [obtener_fila_izquierda_alternado,
+                          obtener_fila_izquierda_punto_medio,
+                          obtener_fila_izquierda_triacon]
+
+def fusionar_par_puntos(puntos, vertices, aristas, id_derecha, id_izquierda):
+    """    
+    print("puntos: " + str(puntos))
+    print("vertices: " + str(vertices))
+    print("aristas: " + str(aristas))
+    print("id_derecha: " + str(id_derecha))
+    print("id_izquierda: " + str(id_izquierda))
+    """
+    aristas[id_derecha] += aristas[id_izquierda]
+    aristas[id_derecha] = list(set(aristas[id_derecha]))
+
+    # Conectar todas esas aristas al punto de la derecha
+    for k in aristas[id_izquierda]:
+        aristas[k].append(id_derecha)
+        aristas[k] = list(set(aristas[k]))
+
+    # Eliminar la conexión de las aristas al punto de la izquierda
+    del aristas[id_izquierda]
+
+    # Eliminar de los vértices del polígono al punto de la izquierda
+    if id_izquierda in vertices:
+        vertices.remove(id_izquierda)
     
-    # Fusionar límites entre caras adyacentes
-    id_punto_central = "0_" + str(frecuencia) + "_0"
-    coordenadas_punto_central = subcaras[0]["p"][id_punto_central]
-    del_puntos = []  # Lista para almacenar puntos a eliminar (duplicados entre caras)
+    # Eliminar el punto central a eliminar
+    del puntos[id_izquierda]
     
-    # Recorrer todas las caras para establecer las "costuras" entre ellas
-    for c in range(len(subcaras)):
-        id = c
-        id_siguiente = (c + 1) % lados  # Cara siguiente (vuelve a la primera al final)
-        
-        # Para cada nivel de la "costura"
-        for i in range(frecuencia + 1):
-            # Calcular identificadores de puntos clave para la costura
-            id_del = str(id) + "_" + str(i) + "_" + str(frecuencia-i)  # Punto en el borde actual
-            id_sus = str(id_siguiente) + "_" + str(i) + "_" + str(0)   # Punto correspondiente en la cara siguiente
-            id_arriba = str(id) + "_" + str(i) + "_" + str(frecuencia-i-1)  # Punto adyacente superior
-            id_debajo = str(id) + "_" + str(i-1) + "_" + str(frecuencia-i)  # Punto adyacente inferior
-            
-            # Evitar conectar el último punto con el primero en el caso especial
-            if not(id_siguiente == 0 and i == frecuencia):
-                # Crear conexiones por encima (excepto en el último nivel)
-                if i != frecuencia:
-                    subcaras[id]["a"][id_arriba].append(id_sus)
-                    subcaras[id_siguiente]["a"][id_sus].append(id_arriba)
-                
-                # Crear conexiones por debajo (excepto en el primer nivel)
-                if i != 0:
-                    subcaras[id]["a"][id_debajo].append(id_sus)
-                    subcaras[id_siguiente]["a"][id_sus].append(id_debajo)
-            
-            # Eliminar el punto duplicado del borde actual
-            del subcaras[id]["p"][id_del]
-            
-            # Eliminar referencias al punto duplicado
-            if id_del in subcaras[id]["v"]:
-                subcaras[id]["v"].remove(id_del)
-            
-            del subcaras[id]["a"][id_del]
-            for id_punto in subcaras[id]["a"].keys():
-                if id_del in subcaras[id]["a"][id_punto]:
-                    subcaras[id]["a"][id_punto].remove(id_del)
-            
-            del_puntos.append(id_del)
-    
-    # Eliminar todas las referencias a puntos duplicados en las aristas
-    conjunto_a_eliminar = set(del_puntos)
-    for c in range(len(subcaras)):
-        for id_punto in subcaras[c]["a"].keys():
-            subcaras[c]["a"][id_punto] = [elemento for elemento in subcaras[c]["a"][id_punto] 
-                                         if elemento not in conjunto_a_eliminar]
-    
-    # Añadir el punto central (común a todas las caras)
-    subcaras[0]["p"][id_punto_central] = coordenadas_punto_central
-    
-    # Crear el anillo de puntos conectados al punto central
-    anillo_central = [str(c) + "_" + str(frecuencia-1) + "_0" for c in range(len(subcaras))]
-    subcaras[0]["a"][id_punto_central] = anillo_central
-    
-    # Conectar cada punto del anillo con el punto central
-    for c in range(len(subcaras)):
-        subcaras[c]["a"][str(c) + "_" + str(frecuencia-1) + "_0"].append(id_punto_central)
-    
-    # Fusionar todos los elementos de las caras en una única estructura
-    puntos = {}
-    vertices = []
-    aristas = {}
-    
-    for c in range(len(subcaras)):
-        # Añadir puntos
-        for punto_cara in subcaras[c]["p"].keys():
-            puntos[punto_cara] = subcaras[c]["p"][punto_cara]
-        
-        # Añadir vértices
-        vertices += subcaras[c]["v"]
-        
-        # Añadir aristas
-        for punto_cara in subcaras[c]["a"].keys():
-            aristas[punto_cara] = subcaras[c]["a"][punto_cara]
+    # Eliminar cualquier posible conexión de un nodo al punto de la izquierda
+    for k in aristas.keys():
+        if id_izquierda in aristas[k]:
+            aristas[k].remove(id_izquierda)
     
     return puntos, vertices, aristas
 
-def fusionar_triangulos_base_punto_medio(frecuencia, lados):
+def fusionar_triangulos_base(frecuencia, lados, tipo):
     """
     Genera una estructura geométrica formada por la unión de múltiples triángulos base,
     organizados en un polígono de N lados.
@@ -192,7 +128,7 @@ def fusionar_triangulos_base_punto_medio(frecuencia, lados):
     subcaras_base = generar_triangulacion_poligono(lados)
     
     # Genera el triángulo base con la frecuencia indicada
-    puntos_base, vertices_base, aristas_base = generar_triangulo_base_punto_medio(frecuencia)
+    puntos_base, vertices_base, aristas_base = generar_triangulo_base[tipo](frecuencia)
     
     # Si solo se pide un triángulo, devuelve directamente el triángulo base
     if lados == 3:
@@ -218,43 +154,38 @@ def fusionar_triangulos_base_punto_medio(frecuencia, lados):
         vertices += subvertices_base
         subaristas_base = renombrar_aristas(aristas_base, i)
         aristas = aristas | subaristas_base
-        
+
     # Conectar todos los puntos a un solo punto central
-    id_punto_central = "0_2"
+    tipos_id_punto_central = ["0_" + str(frecuencia) + "_0", "0_2", "0_2"]
+    id_punto_central = tipos_id_punto_central[tipo]
+
+    # Eliminar de los vértices del polígono al punto central
     vertices.remove(id_punto_central)
     for i in range(1, lados):
-        sig_centro = str(i) + "_2"
-        aristas[id_punto_central] += aristas[sig_centro]
 
-        for j in aristas[sig_centro]:
-            aristas[j].append(id_punto_central)
+        # Traspasar todas las posibles aristas del siguiente punto al punto central
+        tipos_id_siguiente_punto_central = [str(i) + "_" + str(frecuencia) + "_0", str(i) + "_2", str(i) + "_2"]
+        sig_centro = tipos_id_siguiente_punto_central[tipo]
+        puntos, vertices, aristas = fusionar_par_puntos(puntos, vertices, aristas, id_punto_central, sig_centro)
 
-        del aristas[sig_centro]
-        vertices.remove(sig_centro)
-        del puntos[sig_centro]
-
-        for j in aristas.keys():
-            if sig_centro in aristas[j]:
-                aristas[j].remove(sig_centro)
-
+    # Coser las aristas de un triángulo y el siguiente
     for i in range(lados):
+        # id cara actual
         id = i
-        id_anterior = (i - 1) % lados  # Cara anterior (vuelve a la primera al final)
+        # id cara anterior (vuelve a la última asi la actual es la primera)
+        id_anterior = (i - 1) % lados
 
-        anterior_derecha = str(id_anterior) + "_1"
-        actual_izquierda = str(id) + "_0"
-        conexiones_anterior_derecha = aristas[anterior_derecha]
-        conexiones_anterior_derecha.remove("0_2")
-        aristas[actual_izquierda] += conexiones_anterior_derecha
+        # Obtener las dos listas de ids a fusionar, la izquierda desaparece y la derecha le sustituye
+        ids_nodos_izquierda = generar_fila_izquierda[tipo](frecuencia, id_anterior)
+        ids_nodos_derecha = generar_fila_derecha[tipo](frecuencia, id)
 
-        for j in conexiones_anterior_derecha:
-            aristas[j].append(actual_izquierda)
-            aristas[j].remove(anterior_derecha)
+        # Por cada unión entre triangulos
+        for j in range(len(ids_nodos_derecha)):
 
-        del aristas[anterior_derecha]
-        vertices.remove(anterior_derecha)
-        del puntos[anterior_derecha]
-        aristas[id_punto_central].remove(anterior_derecha)
-
+            # Traspasar todas las posibles aristas del punto al punto equivalente de la derecha
+            id_izquierda = ids_nodos_izquierda[j]
+            id_derecha = ids_nodos_derecha[j]
+            # j == len(ids_nodos_derecha)-1
+            puntos, vertices, aristas = fusionar_par_puntos(puntos, vertices, aristas, id_derecha, id_izquierda)
     
     return puntos, vertices, aristas
