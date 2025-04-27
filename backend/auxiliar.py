@@ -1,191 +1,217 @@
-from utils import *
-from triangulos_base import *
+import numpy as np
+import matplotlib.pyplot as plt
+import json
+from scipy.spatial import Delaunay
 
-def renombrar_puntos(puntos, cara):
+from fusion_triangulos import *
+
+def visualizar_poliedro(puntos, aristas, titulo="Poliedro 3D"):
     """
-    Renombra las claves de un diccionario de puntos añadiendo el prefijo del número de cara.
+    Dibuja un poliedro 3D a partir de sus vértices y aristas.
+    
+    Parámetros:
+    -----------
+    puntos : dict
+        Diccionario con formato {id_punto: [x, y, z]} donde id_punto es un identificador
+        y [x, y, z] son las coordenadas 3D del vértice.
+    
+    aristas : dict
+        Diccionario con formato {id_punto: [id_punto1, id_punto2, ...]} donde cada id_punto
+        está conectado con los puntos en la lista.
+    
+    titulo : str, opcional
+        Título para la visualización.
+    """
+    # Crear figura y ejes 3D
+    #fig = plt.figure(figsize=(10, 8), facecolor="black")
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection='3d')
+    
+    # Extraer coordenadas de todos los puntos
+    xs = [punto[0] for punto in puntos.values()]
+    ys = [punto[1] for punto in puntos.values()]
+    zs = [punto[2] for punto in puntos.values()]
+    
+    # Encontrar límites para hacer la visualización equilibrada
+    x_min, x_max = min(xs), max(xs)
+    y_min, y_max = min(ys), max(ys)
+    z_min, z_max = min(zs), max(zs)
+    
+    # Establecer límites del gráfico para mantener proporciones
+    max_range = max(x_max - x_min, y_max - y_min, z_max - z_min)
+    mid_x = (x_max + x_min) / 2
+    mid_y = (y_max + y_min) / 2
+    mid_z = (z_max + z_min) / 2
+    
+    ax.set_xlim(mid_x - max_range, mid_x + max_range)
+    ax.set_ylim(mid_y - max_range, mid_y + max_range)
+    ax.set_zlim(mid_z - max_range, mid_z + max_range)
+    
+    # Configurar para que todos los ejes tengan la misma escala
+    ax.set_box_aspect([1, 1, 1])
+    
+    # Dibujar puntos
+    ax.scatter(xs, ys, zs, c='#4682B4', marker='o', s=60)
+    
+    # Dibujar aristas
+    for punto_id, conexiones in aristas.items():
+        p1 = puntos[punto_id]
+        for punto_conectado in conexiones:
+            # Solo dibujar cada arista una vez
+            if punto_id < punto_conectado or punto_conectado not in aristas or punto_id not in aristas[punto_conectado]:
+                p2 = puntos[punto_conectado]
+                ax.plot([p1[0], p2[0]], [p1[1], p2[1]], [p1[2], p2[2]], color='#A0C8E0', linewidth=2)
+    
+    # Configurar ejes y título
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.set_title(titulo)
+    ax.set_axis_off()
+    
+    # Configurar vistas iniciales
+    ax.view_init(30, 45)  # Elevación, Azimut
+    
+    # Añadir texto instructivo
+    fig.text(0.5, 0.02, 'Haz clic y arrastra para rotar la figura', ha='center')
+    
+    plt.tight_layout()
+    plt.show()
+
+def actualizar_puntos_a_3d(puntos, vertices, vertices_3d):
+    # Extraer las coordenadas 2D de los vértices
+    coords_2d_vertices = np.array([puntos[v] for v in vertices])
+    
+    # Convertir las coordenadas 3D de los vértices a un array numpy
+    coords_3d_vertices = np.array(vertices_3d)
+    
+    # Crear una triangulación Delaunay con los vértices 2D
+    triangulacion = Delaunay(coords_2d_vertices)
+    
+    # Inicializar el diccionario de puntos actualizados
+    puntos_actualizados = {}
+    
+    # Para cada punto en el diccionario original
+    for id_punto, coord_2d in puntos.items():
+        # Si el punto es un vértice, simplemente usar sus coordenadas 3D
+        if id_punto in vertices:
+            idx = vertices.index(id_punto)
+            puntos_actualizados[id_punto] = tuple(coords_3d_vertices[idx])
+        else:
+            # Encontrar en qué triángulo se encuentra el punto
+            coord_2d_array = np.array([coord_2d])
+            simplex = triangulacion.find_simplex(coord_2d_array)[0]
+            
+            if simplex == -1:
+                # El punto está fuera de la triangulación, usar el triángulo más cercano
+                dist = np.sum((coords_2d_vertices - coord_2d)**2, axis=1)
+                indices = np.argsort(dist)[:3]  # Usar los 3 vértices más cercanos
+                
+                # Calcular las coordenadas baricéntricas para los vértices más cercanos
+                total_dist = np.sum(1.0 / dist[indices])
+                pesos = (1.0 / dist[indices]) / total_dist
+                
+                # Interpolar la coordenada 3D
+                coord_3d = np.zeros(3)
+                for i, idx in enumerate(indices):
+                    coord_3d += pesos[i] * coords_3d_vertices[idx]
+                
+                puntos_actualizados[id_punto] = tuple(coord_3d)
+            else:
+                # Obtener las coordenadas baricéntricas
+                b = triangulacion.transform[simplex, :2].dot(np.transpose(coord_2d_array - triangulacion.transform[simplex, 2]))
+                b = np.append(b, 1 - np.sum(b))
+                
+                # Obtener los vértices del triángulo
+                vertices_triangulo = triangulacion.simplices[simplex]
+                
+                # Interpolar la coordenada 3D usando las coordenadas baricéntricas
+                coord_3d = np.zeros(3)
+                for i, v_idx in enumerate(vertices_triangulo):
+                    coord_3d += b[i] * coords_3d_vertices[v_idx]
+                
+                puntos_actualizados[id_punto] = tuple(coord_3d)
+    
+    return puntos_actualizados
+
+def proyectar_puntos_a_esfera(puntos, radio):
+    """
+    Proyecta puntos 3D sobre una esfera centrada en el origen con el radio especificado.
     
     Args:
-        puntos: Diccionario donde las claves son identificadores de puntos y los valores son sus coordenadas
-        cara: Número que identifica la cara actual
-        
+        puntos: Diccionario con la estructura {id_punto: (x, y, z)}
+        radio: Radio de la esfera destino
+    
     Returns:
-        Diccionario con los identificadores renombrados con el formato "cara_id"
+        Diccionario con los puntos proyectados sobre la esfera
     """
-    return {str(cara) + "_" + id : puntos[id] for id in puntos.keys()}
-
-def renombrar_vertices(vertices, cara):
-    """
-    Renombra los identificadores de vértices añadiendo el prefijo del número de cara.
+    puntos_proyectados = {}
     
-    Args:
-        vertices: Lista de identificadores de vértices
-        cara: Número que identifica la cara actual
+    for id_punto, coords in puntos.items():
+        # Convertir las coordenadas a un array numpy
+        punto = np.array(coords)
         
-    Returns:
-        Lista de identificadores renombrados con el formato "cara_id"
-    """
-    return [str(cara) + "_" + id for id in vertices]
-
-def renombrar_aristas(aristas, cara):
-    """
-    Renombra las claves y valores de un diccionario de aristas añadiendo el prefijo del número de cara.
-    
-    Args:
-        aristas: Diccionario donde las claves son identificadores de puntos y los valores son listas
-                de identificadores de puntos conectados (adyacencias)
-        cara: Número que identifica la cara actual
+        # Calcular la distancia desde el origen al punto
+        distancia = np.linalg.norm(punto)
         
-    Returns:
-        Diccionario de aristas con todos los identificadores renombrados con el formato "cara_id"
-    """
-    nuevas_aristas = {}
-
-    for id in aristas.keys():
-        nuevas_aristas[str(cara) + "_" + id] = [str(cara) + "_" + id for id in aristas[id]]
-
-    return nuevas_aristas
-
-generar_triangulo_base = [generar_triangulo_base_alternado, 
-                          generar_triangulo_base_punto_medio,
-                          generar_triangulo_base_triacon]
-
-def obtener_fila_izquierda_alternado(frecuencia, lado):
-    return [str(lado) + "_" + str(i) + "_" + str(frecuencia - i) for i in range(frecuencia)]
-
-def obtener_fila_derecha_alternado(frecuencia, lado):
-    return [str(lado) + "_" + str(i) + "_0" for i in range(frecuencia)]
-
-def obtener_fila_izquierda_punto_medio(frecuencia, lado):
-    return [str(lado) + "_1"]
-
-def obtener_fila_derecha_punto_medio(frecuencia, lado):
-    return [str(lado) + "_0"]
-
-def obtener_fila_izquierda_triacon(frecuencia, lado):
-    return [str(lado) + "_1"] + [str(lado) + "_1_" + str(i) for i in range(2**frecuencia-1)]
-
-def obtener_fila_derecha_triacon(frecuencia, lado):
-    return [str(lado) + "_0"] + [str(lado) + "_2_" + str(i) for i in range(2**frecuencia-2, -1, -1)]
-
-generar_fila_derecha = [obtener_fila_derecha_alternado,
-                        obtener_fila_derecha_punto_medio,
-                        obtener_fila_derecha_triacon]
-
-generar_fila_izquierda = [obtener_fila_izquierda_alternado,
-                          obtener_fila_izquierda_punto_medio,
-                          obtener_fila_izquierda_triacon]
-
-def fusionar_par_puntos(puntos, vertices, aristas, id_derecha, id_izquierda):
-    """    
-    print("puntos: " + str(puntos))
-    print("vertices: " + str(vertices))
-    print("aristas: " + str(aristas))
-    print("id_derecha: " + str(id_derecha))
-    print("id_izquierda: " + str(id_izquierda))
-    """
-    aristas[id_derecha] += aristas[id_izquierda]
-    aristas[id_derecha] = list(set(aristas[id_derecha]))
-
-    # Conectar todas esas aristas al punto de la derecha
-    for k in aristas[id_izquierda]:
-        aristas[k].append(id_derecha)
-        aristas[k] = list(set(aristas[k]))
-
-    # Eliminar la conexión de las aristas al punto de la izquierda
-    del aristas[id_izquierda]
-
-    # Eliminar de los vértices del polígono al punto de la izquierda
-    if id_izquierda in vertices:
-        vertices.remove(id_izquierda)
-    
-    # Eliminar el punto central a eliminar
-    del puntos[id_izquierda]
-    
-    # Eliminar cualquier posible conexión de un nodo al punto de la izquierda
-    for k in aristas.keys():
-        if id_izquierda in aristas[k]:
-            aristas[k].remove(id_izquierda)
-    
-    return puntos, vertices, aristas
-
-def fusionar_triangulos_base(frecuencia, lados, tipo):
-    """
-    Genera una estructura geométrica formada por la unión de múltiples triángulos base,
-    organizados en un polígono de N lados.
-    
-    Args:
-        frecuencia: Determina la densidad de puntos en cada triángulo base
-        lados: Número de lados del polígono (número de triángulos base a fusionar)
+        # Evitar división por cero
+        if distancia < 1e-10:  # Si el punto está muy cerca del origen
+            # Asignar una dirección aleatoria
+            direccion = np.random.randn(3)
+            direccion = direccion / np.linalg.norm(direccion)
+            punto_proyectado = radio * direccion
+        else:
+            # Normalizar el vector (obtener el vector unitario en la dirección del punto)
+            vector_unitario = punto / distancia
+            
+            # Escalar el vector unitario por el radio deseado
+            punto_proyectado = radio * vector_unitario
         
-    Returns:
-        Tupla con tres elementos:
-        - puntos: Diccionario de puntos con sus coordenadas
-        - vertices: Lista de identificadores de los vértices principales
-        - aristas: Diccionario que define las conexiones entre puntos
-    """
-    # Genera la triangulación del polígono de N lados
-    subcaras_base = generar_triangulacion_poligono(lados)
+        # Guardar el punto proyectado en el diccionario resultado
+        puntos_proyectados[id_punto] = tuple(punto_proyectado)
     
-    # Genera el triángulo base con la frecuencia indicada
-    puntos_base, vertices_base, aristas_base = generar_triangulo_base[tipo](frecuencia)
-    
-    # Si solo se pide un triángulo, devuelve directamente el triángulo base
-    if lados == 3:
-        return puntos_base, vertices_base, aristas_base
+    return puntos_proyectados
 
-    # Transformar y renombrar elementos por caras
-    puntos = {}
-    vertices = []
-    aristas = {}
-    for i in range(len(subcaras_base)):
-        # Transformar los puntos del triángulo base según las coordenadas baricéntricas
-        # de la subcara actual
-        subpuntos_base = transformar_puntos_baricentricos(
-            puntos_base, 
-            [puntos_base[vb] for vb in vertices_base], 
-            subcaras_base[i]
-        )
-        
-        # Renombrar puntos, vértices y aristas con el prefijo de la cara actual
-        subpuntos_base = renombrar_puntos(subpuntos_base, i)
-        puntos = puntos | subpuntos_base
-        subvertices_base = renombrar_vertices(vertices_base, i)
-        vertices += subvertices_base
-        subaristas_base = renombrar_aristas(aristas_base, i)
-        aristas = aristas | subaristas_base
+#path = "backend\\semillas_solidos\\tetraedro.json"
+#path = "backend\\semillas_solidos\\octaedro.json"
+#path = "backend\\semillas_solidos\\cubo.json"
+#path = "backend\\semillas_solidos\\dodecaedro.json"
+#path = "backend\\semillas_solidos\\icosaedro.json"
+#path = "backend\\semillas_solidos\\tetraedro_truncado.json"
+path = "backend\\semillas_solidos\\octaedro_truncado.json"
 
-    # Conectar todos los puntos a un solo punto central
-    tipos_id_punto_central = ["0_" + str(frecuencia) + "_0", "0_2", "0_2"]
-    id_punto_central = tipos_id_punto_central[tipo]
+with open(path, 'r') as file:
+    poliedro_info = json.load(file)
 
-    # Eliminar de los vértices del polígono al punto central
-    vertices.remove(id_punto_central)
-    for i in range(1, lados):
+# Ejemplo: un cubo simple
+puntos = poliedro_info["puntos"]
+aristas = poliedro_info["aristas"]
+caras = poliedro_info["caras"]
+caras_vertices = poliedro_info["caras_vertices"]
 
-        # Traspasar todas las posibles aristas del siguiente punto al punto central
-        tipos_id_siguiente_punto_central = [str(i) + "_" + str(frecuencia) + "_0", str(i) + "_2", str(i) + "_2"]
-        sig_centro = tipos_id_siguiente_punto_central[tipo]
-        puntos, vertices, aristas = fusionar_par_puntos(puntos, vertices, aristas, id_punto_central, sig_centro)
+puntos_poliedro = {}
+vertices_poliedro = []
+aristas_poliedro = {}
 
-    # Coser las aristas de un triángulo y el siguiente
-    for i in range(lados):
-        # id cara actual
-        id = i
-        # id cara anterior (vuelve a la última asi la actual es la primera)
-        id_anterior = (i - 1) % lados
+frecuencia = 1
+tipo = 0
 
-        # Obtener las dos listas de ids a fusionar, la izquierda desaparece y la derecha le sustituye
-        ids_nodos_izquierda = generar_fila_izquierda[tipo](frecuencia, id_anterior)
-        ids_nodos_derecha = generar_fila_derecha[tipo](frecuencia, id)
+radio = 1
 
-        # Por cada unión entre triangulos
-        for j in range(len(ids_nodos_derecha)):
+for i in range(len(caras)):
+    puntos_cara, vertices_cara, aristas_cara = fusionar_triangulos_base(frecuencia, caras[str(i)], tipo)
+    vertices_3d = [puntos[caras_vertices[str(i)][j]] for j in range(caras[str(i)])]
+    puntos_cara = actualizar_puntos_a_3d(puntos_cara, vertices_cara, vertices_3d)
+    puntos_cara = renombrar_puntos(puntos_cara, i)
+    puntos_poliedro = puntos_poliedro | puntos_cara
+    vertices_cara = renombrar_vertices(vertices_cara, i)
+    vertices_poliedro += vertices_cara
+    aristas_cara = renombrar_aristas(aristas_cara, i)
+    aristas_poliedro = aristas_poliedro | aristas_cara
 
-            # Traspasar todas las posibles aristas del punto al punto equivalente de la derecha
-            id_izquierda = ids_nodos_izquierda[j]
-            id_derecha = ids_nodos_derecha[j]
-            # j == len(ids_nodos_derecha)-1
-            puntos, vertices, aristas = fusionar_par_puntos(puntos, vertices, aristas, id_derecha, id_izquierda)
-    
-    return puntos, vertices, aristas
+# FALTA UNIR LAS COSTURAS!!!
+
+#puntos_poliedro = proyectar_puntos_a_esfera(puntos_poliedro, radio)
+
+
+visualizar_poliedro(puntos_poliedro, aristas_poliedro, "Ejemplo de Tetraedro")

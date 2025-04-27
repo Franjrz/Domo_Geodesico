@@ -191,6 +191,10 @@ def generar_puntos_y_rectas_triangulo_triacon(frecuencia):
         "2": v3
     }
     rectas = {}
+
+    # Si la frecuencia es la mínima no calcular las rectas
+    if frecuencia == 0:
+        return vertices, puntos, rectas
     
     # 3. Calcular subdivisiones en cada lado según la frecuencia
     divisiones = 2 ** frecuencia
@@ -369,42 +373,111 @@ def puntos_en_recta_triacon(punto_inicial, vector_director, diccionario_puntos, 
     return [punto_id for punto_id, _ in puntos_en_recta]
 
 def agregar_arista_si_no(aristas, id_pre, id_post):
+    """
+    Añade una arista unidireccional de id_pre a id_post en el diccionario de aristas.
+    Si el nodo id_pre no existe en el diccionario, crea una nueva entrada.
+    
+    Args:
+        aristas: Diccionario de aristas donde la clave es el ID del nodo origen
+                y el valor es una lista de IDs de nodos destino
+        id_pre: ID del nodo origen
+        id_post: ID del nodo destino
+        
+    Returns:
+        El diccionario de aristas actualizado
+    """
     if id_pre not in aristas.keys():
         aristas[id_pre] = [id_post]
     else:
         aristas[id_pre].append(id_post)
     return aristas
 
+
 def rellenar_aristas(aristas, id_pre, id_post):
+    """
+    Añade una arista bidireccional entre id_pre e id_post en el diccionario de aristas.
+    Crea una conexión de id_pre a id_post y otra de id_post a id_pre.
+    
+    Args:
+        aristas: Diccionario de aristas donde la clave es el ID del nodo
+                y el valor es una lista de IDs de nodos conectados
+        id_pre: ID del primer nodo
+        id_post: ID del segundo nodo
+        
+    Returns:
+        El diccionario de aristas actualizado con la conexión bidireccional
+    """
     aristas = agregar_arista_si_no(aristas, id_pre, id_post)
     aristas = agregar_arista_si_no(aristas, id_post, id_pre)
     return aristas
 
+
 def generar_triangulo_base_triacon(frecuencia):
+    """
+    Genera un triángulo base triacon con sus puntos, vértices y aristas.
+    
+    El proceso consiste en:
+    1. Generar los puntos y rectas iniciales del triángulo
+    2. Calcular todas las intersecciones entre las rectas
+    3. Construir las aristas que conectan los puntos del triángulo
+    
+    Args:
+        frecuencia: Determina la complejidad del triángulo (2^frecuencia divisiones por lado)
+        
+    Returns:
+        tuple: (puntos, vertices, aristas)
+            - puntos: Diccionario {id: (x, y)} con las coordenadas de cada punto
+            - vertices: Lista con los IDs de los vértices del triángulo ["0", "1", "2"]
+            - aristas: Diccionario {id: [id1, id2, ...]} con las conexiones entre puntos
+    """
+    frecuencia -= 1
+    # Generar los puntos y rectas iniciales del triángulo
     vertices, puntos, rectas = generar_puntos_y_rectas_triangulo_triacon(frecuencia)
+
+    if frecuencia == 0:
+        aristas = {"0": ["1", "2"],
+                   "1": ["0", "2"],
+                   "2": ["0", "1"]}
+        return puntos, vertices, aristas
     
     # Calcular las intersecciones entre rectas
     puntos = calcular_intersecciones_triacon(vertices, puntos, rectas)
 
+    # Inicializar el diccionario de aristas
     aristas = {}
+    
+    # Crear aristas para cada lado del triángulo (0, 1, 2)
     for i in range(3):
+        # Crear aristas a lo largo de las rectas perpendiculares
         for j in range(1, 2**frecuencia):
+            # Obtener el ID del punto en el lado
             id_punto = f"{i}_{j-1}"
+            # Obtener coordenadas y vector director de la recta perpendicular
             coord_punto, vec = rectas[id_punto]
+            # Obtener puntos ordenados que están en esta recta
             ids_orden = puntos_en_recta_triacon(coord_punto, vec, puntos)
+            # Crear aristas entre puntos consecutivos en la recta
             for k in range(len(ids_orden) - 1):
                 aristas = rellenar_aristas(aristas, ids_orden[k], ids_orden[k+1])
+        
+        # Crear aristas entre puntos consecutivos en cada lado del triángulo
         for j in range(1, 2**frecuencia-1):
             id_punto = f"{i}_{j-1}"
             id_punto_siguiente = f"{i}_{j}"
             aristas = rellenar_aristas(aristas, id_punto, id_punto_siguiente)
-        id_punto = str(i)
-        id_punto_siguiente = str(i) + "_0"
-        id_punto_anterior = str((i - 1) % 3) + "_" + str(2**frecuencia-2)
+        
+        # Conectar los vértices del triángulo con los puntos adyacentes
+        id_punto = str(i)  # Vértice actual
+        id_punto_siguiente = f"{i}_0"  # Primer punto en este lado
+        id_punto_anterior = f"{(i - 1) % 3}_{2**frecuencia-2}"  # Último punto del lado anterior
+        
+        # Conectar el vértice con puntos adyacentes
         if id_punto not in aristas.keys():      
             aristas[id_punto] = [id_punto_siguiente, id_punto_anterior]
         else:
             aristas[id_punto] += [id_punto_siguiente, id_punto_anterior]
+        
+        # Asegurar que el último punto del lado anterior esté conectado al vértice
         aristas = agregar_arista_si_no(aristas, id_punto_anterior, id_punto)
     
     return puntos, vertices, aristas
