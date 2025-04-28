@@ -1,8 +1,8 @@
 
 from scipy.spatial import Delaunay
 
-from poliedro import *
-from fusion_triangulos import *
+from domo.poliedro import *
+from domo.fusion_triangulos import *
 
 class Domo():
     def __init__(self, semilla, frecuencia, tipo, radio):
@@ -184,13 +184,3 @@ class Domo():
         
         plt.tight_layout()
         plt.show()
-
-# Ejemplo de uso:
-if __name__ == "__main__":
-    # Probar de 0 a 13. 14, 15 y 17 tienen bugs
-    poliedro_semilla = poliedro_id[0]
-    frecuencia = 2
-    tipo = 0
-    radio = 4
-    domo = Domo(poliedro_semilla, frecuencia, tipo, radio)
-    domo.dibujar()

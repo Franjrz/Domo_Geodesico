@@ -1,6 +1,6 @@
 import numpy as np
 
-from utils import *
+from domo.utils import *
 
 def generar_triangulo_base_alternado(frecuencia):
     """

@@ -1,5 +1,5 @@
-from utils import *
-from triangulos_base import *
+from domo.utils import *
+from domo.triangulos_base import *
 
 def renombrar_puntos(puntos, cara):
     """

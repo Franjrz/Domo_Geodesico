@@ -2,8 +2,8 @@ import numpy as np
 from scipy.spatial import distance
 from skspatial.objects import Points
 
-from generacion_vertices_poliedro import *
-from graficos import *
+from domo.generacion_vertices_poliedro import *
+from domo.graficos import *
 
 class Poliedro():
     def __init__(self, semilla, radio):
