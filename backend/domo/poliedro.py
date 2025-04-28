@@ -6,14 +6,20 @@ from generacion_vertices_poliedro import *
 from graficos import *
 
 class Poliedro():
-    def __init__(self, semilla):
+    def __init__(self, semilla, radio):
         self.semilla = semilla
+        self.radio = radio
         self.vertices = generar_vertices(semilla)
+        #self.__modificar_radio()
         #Falla con ids 14, 15 (romos) y 17
         self.__encontrar_aristas()
         self.tolerancia = 1e-5
         self.longitud_ciclos = forma_caras[semilla]
         self.__encontrar_ciclos()
+
+    def __modificar_radio(self):
+        radio_catual = max(np.linalg.norm(np.array(coord)) for coord in self.vertices)
+        self.vertices = [tuple(self.radio/radio_catual*np.array(coord)) for coord in self.vertices]
 
     def __encontrar_aristas(self):
         """
@@ -96,19 +102,15 @@ class Poliedro():
                 self.__busqueda_en_profundidad([nodo], nodo, i)
                 self.__limpiar_ciclos()
                 self.__insertar_ciclos(i)
+        caras = []
+        for i in self.longitud_ciclos:
+            caras += self.caras[i]
+        self.caras = caras
+
+    def triangular_caras(self):
+        self.caras_trianguladas = []
+        for cara in self.caras:
+            pass
 
     def dibujar(self, ids):
         dibujar_poliedro(self.vertices, self.aristas, ids)
-
-
-# Ejemplo de uso:
-if __name__ == "__main__":
-    # Probar de 0 a 13, 14, 15 y 17 tienen bugs
-    poliedro = Poliedro(poliedro_id[17])
-    print()
-    print(poliedro.semilla)
-    for longitud in poliedro.longitud_ciclos:
-        print(str(len(poliedro.caras[longitud])) + " Caras con " + str(longitud) + " lados")
-        for cara in poliedro.caras[longitud]:
-            print("\t" + str(cara))
-    poliedro.dibujar(True)
