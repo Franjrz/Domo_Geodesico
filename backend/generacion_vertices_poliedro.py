@@ -1,62 +1,5 @@
-import matplotlib.pyplot as plt
-import numpy as np
-from mpl_toolkits.mplot3d import Axes3D
 from math import pow, sqrt
 from scipy.constants import golden as phi
-from sympy import S, N
-
-def __plot_coordenadas(coordenadas):
-    # Convertimos la lista de tuplas a arrays de NumPy para cada dimensión
-    x = [punto[0] for punto in coordenadas]
-    y = [punto[1] for punto in coordenadas]
-    z = [punto[2] for punto in coordenadas]
-
-    # Calculamos los valores máximos y mínimos para cada eje
-    x_min, x_max = min(x), max(x)
-    y_min, y_max = min(y), max(y)
-    z_min, z_max = min(z), max(z)
-    
-    # Calculamos el rango más grande entre los tres ejes
-    x_range = x_max - x_min
-    y_range = y_max - y_min
-    z_range = z_max - z_min
-    max_range = max(x_range, y_range, z_range)
-    
-    # Calculamos el centro de cada eje
-    x_center = (x_max + x_min) / 2
-    y_center = (y_max + y_min) / 2
-    z_center = (z_max + z_min) / 2
-    
-    # Añadimos un pequeño margen para mejor visualización (20% extra)
-    margin = max_range * 0.2
-    
-    # Creamos la figura y el eje 3D
-    fig = plt.figure(figsize=(10, 8))
-    ax = fig.add_subplot(111, projection='3d')
-
-    # Graficamos los puntos
-    ax.scatter(x, y, z, color='blue', s=100, marker='o')
-
-    # Configuramos el gráfico
-    ax.set_box_aspect([1, 1, 1])
-    ax.set_xlabel('Eje X')
-    ax.set_ylabel('Eje Y')
-    ax.set_zlabel('Eje Z')
-    ax.set_title('Gráfico 3D de Puntos')
-
-    # Establecemos límites dinámicos basados en los datos
-    ax.set_xlim(x_center - (max_range/2 + margin), x_center + (max_range/2 + margin))
-    ax.set_ylim(y_center - (max_range/2 + margin), y_center + (max_range/2 + margin))
-    ax.set_zlim(z_center - (max_range/2 + margin), z_center + (max_range/2 + margin))
-
-    # Ajustamos el ángulo de visión
-    ax.view_init(elev=20, azim=30)
-
-    # Añadimos una cuadrícula
-    ax.grid(True)
-
-    plt.tight_layout()
-    plt.show()
 
 def __tetraedro():
     return [(pow(-1,int((i+1)/2)), pow(-1,i), pow(-1,int(i/2))) for i in range(4)]
@@ -307,24 +250,43 @@ poliedros = {"tetraedro": __tetraedro,
              "rombicuboctaedro": __rombicuboctaedro,
              "rombicosidodecaedro": __rombicosidodecaedro}
 
+poliedro_id = ["tetraedro", 
+                "cubo", 
+                "octaedro", 
+                "dodecaedro", 
+                "icosaedro", 
+                "cuboctaedro", 
+                "icosidodecaedro", 
+                "tetraedro truncado",
+                "cubo truncado",
+                "octaedro truncado",
+                "dodecaedro truncado",
+                "icosaedro truncado",
+                "cuboctaedro truncado",
+                "icosidodecaedro truncado",
+                "cubo romo",
+                "dodecaedro romo",
+                "rombicuboctaedro",
+                "rombicosidodecaedro"]
+
+forma_caras = {"tetraedro": [3], 
+                "cubo": [4], 
+                "octaedro": [3], 
+                "dodecaedro": [5], 
+                "icosaedro": [3], 
+                "cuboctaedro": [3,4], 
+                "icosidodecaedro": [3,5], 
+                "tetraedro truncado": [3,6],
+                "cubo truncado": [3,8],
+                "octaedro truncado": [4,6],
+                "dodecaedro truncado": [3,10],
+                "icosaedro truncado": [5,6],
+                "cuboctaedro truncado": [4,6,8],
+                "icosidodecaedro truncado": [4,6,10],
+                "cubo romo": [3,4],
+                "dodecaedro romo": [3,5],
+                "rombicuboctaedro": [3,4],
+                "rombicosidodecaedro": [3,4,5]}
+
 def generar_vertices(poliedro):
     return poliedros[poliedro]()
-
-#__plot_coordenadas(generar_vertices("tetraedro"))
-#__plot_coordenadas(generar_vertices("cubo"))
-#__plot_coordenadas(generar_vertices("octaedro"))
-#__plot_coordenadas(generar_vertices("dodecaedro"))
-#__plot_coordenadas(generar_vertices("icosaedro"))
-#__plot_coordenadas(generar_vertices("cuboctaedro"))
-#__plot_coordenadas(generar_vertices("icosidodecaedro"))
-#__plot_coordenadas(generar_vertices("tetraedro truncado"))
-#__plot_coordenadas(generar_vertices("cubo truncado"))
-#__plot_coordenadas(generar_vertices("octaedro truncado"))
-#__plot_coordenadas(generar_vertices("dodecaedro truncado"))
-#__plot_coordenadas(generar_vertices("icosaedro truncado"))
-#__plot_coordenadas(generar_vertices("cuboctaedro truncado"))
-__plot_coordenadas(generar_vertices("icosidodecaedro truncado"))
-#__plot_coordenadas(generar_vertices("cubo romo"))
-#__plot_coordenadas(generar_vertices("dodecaedro romo"))
-#__plot_coordenadas(generar_vertices("rombicuboctaedro"))
-#__plot_coordenadas(generar_vertices("rombicosidodecaedro"))
