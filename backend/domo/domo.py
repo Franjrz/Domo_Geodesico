@@ -11,11 +11,12 @@ class Domo():
         self.tipo = tipo
         self.frecuencia = frecuencia
         self.radio = radio
-        self.poliedro = Poliedro(semilla, radio)
+        self.poliedro = Poliedro(semilla)
         self.puntos = {}
         self.vertices = []
         self.aristas = {}
         self.__generar_caras_trianguladas()
+        self.__generar_info_aristas()
         # Fusionar caras poliedro TERMINAR
         self.__proyectar_puntos_a_esfera()
 
@@ -89,6 +90,83 @@ class Domo():
             aristas_cara = renombrar_aristas(aristas_cara, i)
             self.aristas = self.aristas | aristas_cara
             #self.dibujar()
+
+    def __generar_info_aristas(self):
+        """
+        Genera información detallada sobre las aristas compartidas entre caras de un poliedro.
+        
+        Parámetros:
+        - caras: lista de listas donde cada lista contiene los IDs de vértices de una cara en orden
+        
+        Retorna:
+        - lista de listas, cada una con 4 elementos:
+        [id_cara1 + "_" + id_local_v1, id_cara2 + "_" + id_local_v2, 
+        id_cara1 + "_" + id_local_v1_next, id_cara2 + "_" + id_local_v2_next]
+        donde:
+        - id_cara1, id_cara2: IDs de las caras que comparten la arista
+        - id_local_v1, id_local_v2: Posiciones locales del primer vértice en cada cara
+        - id_local_v1_next, id_local_v2_next: Posiciones locales del segundo vértice en cada cara
+        """
+        # Diccionario para mapear pares de vértices a las caras que los contienen
+        # Clave: tupla ordenada (v1, v2) de vértices que forman una arista
+        # Valor: lista de tuplas (id_cara, id_local_v1, id_local_v2) que contienen esa arista
+        arista_a_caras = {}
+        
+        # Recorrer todas las caras
+        for id_cara, cara in enumerate(self.poliedro.caras):
+            n_vertices = len(cara)
+            
+            # Recorrer todas las aristas de la cara
+            for i in range(n_vertices):
+                # Guardar la información: (id_cara, posición local de v1, posición local de v2)
+                pos_v1 = i
+                pos_v2 = (i + 1) % n_vertices # El siguiente vértice (cíclico)
+
+                v1 = cara[pos_v1]
+                v2 = cara[pos_v2]  
+                
+                # Ordenar los vértices para asegurar consistencia en las claves del diccionario
+                arista = tuple(sorted([v1, v2]))
+                
+                # Si v1 > v2, invertimos las posiciones locales porque ordenamos la arista
+                if v1 > v2:
+                    pos_v1, pos_v2 = pos_v2, pos_v1
+                
+                if arista not in arista_a_caras:
+                    arista_a_caras[arista] = []
+                
+                arista_a_caras[arista].append((id_cara, pos_v1, pos_v2))
+        
+        # Generar la lista final de información de aristas
+        self.conexiones_aristas = []
+        
+        for arista, ocurrencias in arista_a_caras.items():
+            # Solo considerar aristas que aparecen exactamente en 2 caras
+            if len(ocurrencias) == 2:
+                v1, v2 = arista
+                (id_cara1, pos_v1_cara1, pos_v2_cara1) = ocurrencias[0]
+                (id_cara2, pos_v1_cara2, pos_v2_cara2) = ocurrencias[1]
+                
+                # Verificar que las posiciones locales corresponden a los vértices correctos
+                # Esto es necesario porque pueden haber cambiado debido al ordenamiento
+                vertice1_cara1 = self.poliedro.caras[id_cara1][pos_v1_cara1]
+                vertice1_cara2 = self.poliedro.caras[id_cara2][pos_v1_cara2]
+                
+                # Corregir las posiciones si no coinciden con v1
+                if vertice1_cara1 != v1:
+                    pos_v1_cara1, pos_v2_cara1 = pos_v2_cara1, pos_v1_cara1
+                
+                if vertice1_cara2 != v1:
+                    pos_v1_cara2, pos_v2_cara2 = pos_v2_cara2, pos_v1_cara2
+                
+                # Crear entrada en el formato requerido
+                info_arista = [
+                    f"{id_cara1}_{pos_v1_cara1}",
+                    f"{id_cara2}_{pos_v1_cara2}",
+                    f"{id_cara1}_{pos_v2_cara1}",
+                    f"{id_cara2}_{pos_v2_cara2}"
+                ]
+                self.conexiones_aristas.append(info_arista)
 
     def __proyectar_puntos_a_esfera(self):
         puntos_proyectados = {}
@@ -288,3 +366,66 @@ class Domo():
         
         plt.tight_layout()
         plt.show()
+
+    """
+def combinar_nodos(lista1, lista2, aristas):
+    """
+    """
+    Combina pares de nodos correspondientes entre dos listas, unificando sus conexiones.
+    
+    Parámetros:
+    - lista1: lista de IDs de nodos (primera ruta)
+    - lista2: lista de IDs de nodos (segunda ruta)
+    - aristas: diccionario donde las claves son IDs de nodos y los valores son listas de IDs 
+              de nodos adyacentes
+    
+    Efecto:
+    - Añade todas las uniones del nodo de lista2 al nodo correspondiente de lista1
+    - Elimina cualquier referencia a los nodos de lista2 de las listas de adyacencia
+    - Modifica el diccionario aristas in-place
+    
+    Retorna:
+    - Diccionario aristas actualizado
+    """
+    """
+    if len(lista1) != len(lista2):
+        raise ValueError("Las listas deben tener el mismo número de elementos")
+    
+    # Iterar sobre los pares de nodos correspondientes
+    for i in range(len(lista1)):
+        nodo_destino = lista1[i]  # Nodo que mantendremos
+        nodo_origen = lista2[i]   # Nodo que "fusionaremos" con el destino
+        
+        # Si alguno de los nodos no está en el diccionario, continuar al siguiente par
+        if nodo_destino not in aristas or nodo_origen not in aristas:
+            continue
+        
+        # 1. Añadir todas las conexiones del nodo_origen al nodo_destino
+        # Excluir la autoconexión que se crearía si nodo_origen está conectado a nodo_destino
+        for conexion in aristas[nodo_origen]:
+            if conexion != nodo_destino and conexion not in aristas[nodo_destino]:
+                aristas[nodo_destino].append(conexion)
+        
+        # 2. Para cada nodo en el diccionario, reemplazar las referencias a nodo_origen por nodo_destino
+        for nodo, conexiones in aristas.items():
+            # Saltamos el nodo origen y destino para evitar autoconexiones
+            if nodo == nodo_origen or nodo == nodo_destino:
+                continue
+                
+            # Si el nodo está conectado al nodo_origen
+            if nodo_origen in conexiones:
+                # Eliminar la conexión al nodo_origen
+                conexiones.remove(nodo_origen)
+                
+                # Añadir conexión al nodo_destino si no existe ya
+                if nodo_destino not in conexiones:
+                    conexiones.append(nodo_destino)
+        
+        # 3. Eliminar el nodo_origen del diccionario (opcional, depende de tus requisitos)
+        # Si quieres mantener el nodo pero sin conexiones, comenta esta línea
+        # Si necesitas mantener este nodo por alguna razón, comenta esta línea
+        if nodo_origen in aristas:
+            del aristas[nodo_origen]
+    
+    return aristas
+    """

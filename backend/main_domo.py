@@ -26,11 +26,13 @@ from domo.domo import *
 """
 
 if __name__ == "__main__":
-    poliedro_semilla = poliedro_id[17]
+    poliedro_semilla = poliedro_id[3]
     frecuencia = 2
     tipo = 0
     radio = 4
-    poliedro = Poliedro(poliedro_semilla, radio)
-    poliedro.dibujar()
+    poliedro = Poliedro(poliedro_semilla)
+    #poliedro.dibujar()
+    for cara in poliedro.caras:
+        print(cara)
     #domo = Domo(poliedro_semilla, frecuencia, tipo, radio)
     #domo.dibujar()

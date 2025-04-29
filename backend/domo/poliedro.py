@@ -2,16 +2,16 @@ import numpy as np
 from scipy.spatial import distance
 from skspatial.objects import Points
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 from domo.generacion_vertices_poliedro import *
 
 # Definición de la clase Poliedro
 class Poliedro():
     
-    # Constructor: inicializa el poliedro con una semilla y un radio
-    def __init__(self, semilla, radio):
+    # Constructor: inicializa el poliedro con una semilla
+    def __init__(self, semilla):
         self.semilla = semilla  # Nombre o tipo del poliedro (ej: "cubo romo")
-        self.radio = radio      # Radio del poliedro (aunque en este código no se usa todavía)
         self.vertices = generar_vertices(semilla)  # Genera los vértices basados en la semilla
         self.__encontrar_aristas()  # Encuentra las aristas conectando vértices cercanos
         self.tolerancia = 1e-5  # Tolerancia para considerar coplanaridad
@@ -115,7 +115,7 @@ class Poliedro():
         self.caras = caras
 
     # Método para dibujar el poliedro
-    def dibujar(self, ids = False):
+    def dibujar(self, ids = False, alpha_caras = 0.8):
         # Crear figura y ejes 3D
         fig = plt.figure(figsize=(10, 8))
         ax = fig.add_subplot(111, projection='3d')
@@ -125,10 +125,6 @@ class Poliedro():
         y = [v[1] for v in self.vertices]
         z = [v[2] for v in self.vertices]
 
-        # Dibujar los vértices
-        s = 50 if self.aristas else 100
-        ax.scatter(x, y, z, color='#00008B', s=s, label='Vértices')
-
         # Dibujar las aristas si se proporcionan
         if self.aristas:
             for vertice_id, conexiones in self.aristas.items():
@@ -137,19 +133,35 @@ class Poliedro():
                     if vertice_id < vecino_id:
                         v2 = self.vertices[vecino_id]
                         ax.plot([v1[0], v2[0]], [v1[1], v2[1]], [v1[2], v2[2]],
-                                color='#A0C8E0', linestyle='-', linewidth=1)
+                                color='#2F5F8A', linestyle='-', linewidth=1)
 
         # Añadir etiquetas de identificadores si ids es True
         if ids:
             for idx, (xi, yi, zi) in enumerate(self.vertices):
                 ax.text(xi, yi, zi, str(idx), color='black', fontsize=20, ha='left', va='bottom')
+    
+        # Dibujar caras
+        poly3d = []
+        for cara in self.caras:
+            # Obtener coordenadas de vértices para esta cara
+            vertices_cara = [self.vertices[id_v] for id_v in cara]
+            poly3d.append(vertices_cara)
+        
+        # Crear colección de polígonos 3D y añadirla a los ejes
+        cara_collection = Poly3DCollection(poly3d, 
+                                        facecolors=["#0F52BA" for _ in range(len(self.caras))], 
+                                        alpha=alpha_caras,
+                                        edgecolor='black',
+                                        linewidth=0.5)
+        ax.add_collection3d(cara_collection)
 
         # Configurar aspecto del gráfico
         ax.set_box_aspect([1, 1, 1])
-        ax.set_xlabel('X')
-        ax.set_ylabel('Y')
-        ax.set_zlabel('Z')
-        ax.set_title(self.semilla)
+        titulo = self.semilla
+        titulo = titulo.split()
+        titulo = [palabra.capitalize() for palabra in titulo]
+        ax.set_title(" ".join(titulo))
+        ax.set_axis_off()
 
         # Establecer límites de ejes en un cubo para mejor visualización
         max_range = np.max([np.ptp(x), np.ptp(y), np.ptp(z)]) / 2.0
