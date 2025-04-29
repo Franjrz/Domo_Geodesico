@@ -99,7 +99,6 @@ def generar_triangulo_base_punto_medio(frecuencia):
     Realiza la triangulación de manera iterativa hasta un nivel máximo.
     
     Args:
-        triangulo_inicial: Lista de 3 tuplas (x, y) que representan los vértices del triángulo inicial
         frecuencia: Número máximo de niveles de subdivisión
         
     Returns:
@@ -131,7 +130,7 @@ def generar_triangulo_base_punto_medio(frecuencia):
         return puntos, vertices, adyacencias
     
     # Procesar cada nivel
-    for nivel in range(frecuencia-1):
+    for _ in range(frecuencia-1):
         nuevos_triangulos = []
         
         # Subdividir cada triángulo del nivel actual
@@ -335,8 +334,6 @@ def puntos_en_recta_triacon(punto_inicial, vector_director, diccionario_puntos, 
     Returns:
         list: Lista de IDs de puntos ordenados según su posición en la recta.
     """
-    # Normalizar el vector director para cálculos más precisos
-    magnitud = (vector_director[0]**2 + vector_director[1]**2)**0.5
     
     # Lista para almacenar puntos en la recta con su parámetro t
     puntos_en_recta = []

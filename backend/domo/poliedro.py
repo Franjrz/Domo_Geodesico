@@ -5,74 +5,75 @@ from skspatial.objects import Points
 from domo.generacion_vertices_poliedro import *
 from domo.graficos import *
 
+# Definición de la clase Poliedro
 class Poliedro():
+    
+    # Constructor: inicializa el poliedro con una semilla y un radio
     def __init__(self, semilla, radio):
-        self.semilla = semilla
-        self.radio = radio
-        self.vertices = generar_vertices(semilla)
-        #self.__modificar_radio()
-        #Falla con ids 14, 15 (romos) y 17
-        self.__encontrar_aristas()
-        self.tolerancia = 1e-5
-        self.longitud_ciclos = forma_caras[semilla]
-        self.__encontrar_ciclos()
+        self.semilla = semilla  # Nombre o tipo del poliedro (ej: "cubo romo")
+        self.radio = radio      # Radio del poliedro (aunque en este código no se usa todavía)
+        self.vertices = generar_vertices(semilla)  # Genera los vértices basados en la semilla
+        self.__encontrar_aristas()  # Encuentra las aristas conectando vértices cercanos
+        self.tolerancia = 1e-5  # Tolerancia para considerar coplanaridad
+        self.longitud_ciclos = forma_caras[semilla]  # Tamaños esperados de las caras (ej: 3, 4, 5 lados)
+        self.__encontrar_ciclos()  # Encuentra todas las caras posibles
 
-    def __modificar_radio(self):
-        radio_catual = max(np.linalg.norm(np.array(coord)) for coord in self.vertices)
-        self.vertices = [tuple(self.radio/radio_catual*np.array(coord)) for coord in self.vertices]
-
+    # Método privado para encontrar las aristas del poliedro
     def __encontrar_aristas(self):
         """
-        Crea un grafo de conexiones entre vértices de un poliedro basado en distancias.
-        
-        Parámetros:
-        - vertices: lista de tuplas (x, y, z) con las coordenadas 3D de los vértices
-        
-        Retorna:
-        - Un diccionario donde las claves son los IDs de los vértices (0, 1, 2, ...) y
-        los valores son listas con los IDs de los vértices conectados a cada uno
+        Calcula un grafo de conexiones entre los vértices basado en la distancia mínima.
         """
-        n = len(self.vertices)
-        # Calcular matriz de distancias entre todos los pares de vértices
-        dist_matrix = np.zeros((n, n))
+        n = len(self.vertices)  # Número de vértices
+        dist_matrix = np.zeros((n, n))  # Inicializa matriz de distancias
+
+        # Calcula las distancias euclidianas entre todos los pares de vértices
         for i in range(n):
             for j in range(i+1, n):
                 dist = distance.euclidean(self.vertices[i], self.vertices[j])
                 dist_matrix[i][j] = dist
                 dist_matrix[j][i] = dist
         
+        # Encuentra la distancia mínima no nula (la distancia entre vértices adyacentes)
         min_dist = np.min(dist_matrix[dist_matrix > 0])
         
-        # Crear el grafo como diccionario
+        # Crea el grafo: conecta vértices si están a distancia cercana al mínimo
         self.aristas = {}
         for i in range(n):
-            # Encontrar todos los vértices conectados al vértice i
             conectados = [j for j in range(n) if i != j and dist_matrix[i][j] <= min_dist * 1.1]
             self.aristas[i] = conectados
 
+    # Método privado para realizar una búsqueda en profundidad buscando ciclos de una longitud específica
     def __busqueda_en_profundidad(self, camino, inicio, profundidad):
         if profundidad == 0 and inicio == camino[-1]:
-            self.ciclos.append(camino[:-1])
+            # Si alcanza profundidad 0 y vuelve al inicio, se encontró un ciclo
+            self.ciclos.append(camino[:-1])  # Guarda el ciclo encontrado
             return
         
         if profundidad < 0:
-            return
+            return  # Fin de la rama de búsqueda
 
+        # Explora los vecinos conectados al último nodo del camino
         for vecino in self.aristas[camino[-1]]:
-            if vecino not in camino or (vecino == inicio and profundidad ==1):
+            if vecino not in camino or (vecino == inicio and profundidad == 1):
+                # Solo avanza si no ha visitado el vecino o si puede cerrar el ciclo
                 self.__busqueda_en_profundidad(camino + [vecino], inicio, profundidad - 1)
 
+    # Método privado para limpiar ciclos duplicados y no coplanarios
     def __limpiar_ciclos(self):
         ciclos_limpios = []
         for ciclo_1 in range(len(self.ciclos)):
             iguales = False
             for ciclo_2 in range(ciclo_1 + 1, len(self.ciclos)):
+                # Compara si dos ciclos tienen los mismos vértices (sin importar el orden)
                 if set(self.ciclos[ciclo_1]) == set(self.ciclos[ciclo_2]):
                     iguales = True
                     break
-            if iguales == False:
+            if not iguales:
                 ciclos_limpios.append(self.ciclos[ciclo_1])
-        self.ciclos = ciclos_limpios
+
+        self.ciclos = ciclos_limpios  # Mantiene solo un ciclo único por conjunto de vértices
+
+        # Filtra también los ciclos que no sean coplanarios
         ciclos_limpios = []
         for ciclo in self.ciclos:
             puntos = Points(np.array([self.vertices[pid] for pid in ciclo]))
@@ -80,37 +81,39 @@ class Poliedro():
                 ciclos_limpios.append(ciclo)
         self.ciclos = ciclos_limpios
 
+    # Método privado para insertar los nuevos ciclos encontrados en la lista de caras
     def __insertar_ciclos(self, profundidad):
-        # Convertimos las listas existentes a conjuntos para facilitar comparación
+        # Usa conjuntos para evitar duplicar caras
         conjuntos_destino = [set(lista) for lista in self.caras[profundidad]]
         
         for lista_nueva in self.ciclos:
-            # Convertimos la lista nueva a conjunto para comparación
             conjunto_nuevo = set(lista_nueva)
-            
-            # Verificamos si este conjunto ya existe en nuestros destinos
             if not any(conjunto_nuevo == conjunto_existente for conjunto_existente in conjuntos_destino):
-                # Si no existe, lo agregamos a ambas estructuras
                 self.caras[profundidad].append(lista_nueva)
                 conjuntos_destino.append(conjunto_nuevo)
 
+    # Método privado para encontrar todas las caras del poliedro
     def __encontrar_ciclos(self):
-        self.caras = {l:[] for l in self.longitud_ciclos}
+        # Inicializa el diccionario de caras separadas por su longitud
+        self.caras = {l: [] for l in self.longitud_ciclos}
+
+        # Para cada posible longitud de cara
         for i in self.longitud_ciclos:
             for nodo in self.aristas:
                 self.ciclos = []
+                # Busca ciclos partiendo de cada nodo
                 self.__busqueda_en_profundidad([nodo], nodo, i)
+                # Limpia los ciclos encontrados
                 self.__limpiar_ciclos()
+                # Inserta los ciclos válidos
                 self.__insertar_ciclos(i)
+
+        # Junta todas las caras en una sola lista
         caras = []
         for i in self.longitud_ciclos:
             caras += self.caras[i]
         self.caras = caras
 
-    def triangular_caras(self):
-        self.caras_trianguladas = []
-        for cara in self.caras:
-            pass
-
-    def dibujar(self, ids):
+    # Método para dibujar el poliedro
+    def dibujar(self, ids = False):
         dibujar_poliedro(self.vertices, self.aristas, ids)

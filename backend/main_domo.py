@@ -1,3 +1,4 @@
+from domo.poliedro import *
 from domo.domo import *
 # Ejemplo de uso:
 if __name__ == "__main__":
@@ -6,5 +7,7 @@ if __name__ == "__main__":
     frecuencia = 2
     tipo = 0
     radio = 4
+    #poliedro = Poliedro(poliedro_semilla, radio)
+    #poliedro.dibujar()
     domo = Domo(poliedro_semilla, frecuencia, tipo, radio)
     domo.dibujar()

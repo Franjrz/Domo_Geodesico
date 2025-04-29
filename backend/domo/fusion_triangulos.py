@@ -51,22 +51,72 @@ generar_triangulo_base = [generar_triangulo_base_alternado,
                           generar_triangulo_base_triacon]
 
 def obtener_fila_izquierda_alternado(frecuencia, lado):
+    """
+    Genera una fila para el lado izquierdo en un patrón alternado.
+
+    Cada elemento tiene el formato: "lado_i_(frecuencia-i)",
+    recorriendo i desde 0 hasta frecuencia-1.
+
+    Ejemplo para frecuencia=3, lado='A':
+    -> ['A_0_3', 'A_1_2', 'A_2_1']
+    """
     return [str(lado) + "_" + str(i) + "_" + str(frecuencia - i) for i in range(frecuencia)]
 
 def obtener_fila_derecha_alternado(frecuencia, lado):
+    """
+    Genera una fila para el lado derecho en un patrón alternado.
+
+    Cada elemento tiene el formato: "lado_i_0",
+    donde i recorre de 0 a frecuencia-1.
+
+    Ejemplo para frecuencia=3, lado='A':
+    -> ['A_0_0', 'A_1_0', 'A_2_0']
+    """
     return [str(lado) + "_" + str(i) + "_0" for i in range(frecuencia)]
 
 def obtener_fila_izquierda_punto_medio(frecuencia, lado):
+    """
+    Genera una fila para el lado izquierdo con un único punto medio.
+
+    Devuelve una lista con un solo elemento: "lado_1".
+
+    Ejemplo para lado='A':
+    -> ['A_1']
+    """
     return [str(lado) + "_1"]
 
 def obtener_fila_derecha_punto_medio(frecuencia, lado):
+    """
+    Genera una fila para el lado derecho con un único punto medio.
+
+    Devuelve una lista con un solo elemento: "lado_0".
+
+    Ejemplo para lado='A':
+    -> ['A_0']
+    """
     return [str(lado) + "_0"]
 
 def obtener_fila_izquierda_triacon(frecuencia, lado):
-    return [str(lado) + "_1"] + [str(lado) + "_1_" + str(i) for i in range(2**frecuencia-1)]
+    """
+    Genera una fila para el lado izquierdo en un patrón tipo triacontaedro.
+
+    Comienza con "lado_1" seguido de "lado_1_i" donde i recorre de 0 a (2^frecuencia - 2).
+
+    Ejemplo para frecuencia=2, lado='A':
+    -> ['A_1', 'A_1_0', 'A_1_1', 'A_1_2', 'A_1_3']
+    """
+    return [str(lado) + "_1"] + [str(lado) + "_1_" + str(i) for i in range(2**frecuencia - 1)]
 
 def obtener_fila_derecha_triacon(frecuencia, lado):
-    return [str(lado) + "_0"] + [str(lado) + "_2_" + str(i) for i in range(2**frecuencia-2, -1, -1)]
+    """
+    Genera una fila para el lado derecho en un patrón tipo triacontaedro.
+
+    Comienza con "lado_0" seguido de "lado_2_i" donde i recorre de (2^frecuencia - 2) a 0.
+
+    Ejemplo para frecuencia=2, lado='A':
+    -> ['A_0', 'A_2_2', 'A_2_1', 'A_2_0']
+    """
+    return [str(lado) + "_0"] + [str(lado) + "_2_" + str(i) for i in range(2**frecuencia - 2, -1, -1)]
 
 generar_fila_derecha = [obtener_fila_derecha_alternado,
                         obtener_fila_derecha_punto_medio,
