@@ -434,28 +434,21 @@ def __cubo_romo():
     """
 
     # Definimos las constantes: tribonacci y su inverso
-    tribonacci = 1.839286755214161    # Aproximación de la constante tribonacci
-    tribonacci_1 = 1 / tribonacci     # Inverso de la tribonacci
+    t = 1.839286755214161    # Aproximación de la constante tribonacci
+    t_1 = 1 / t     # Inverso de la tribonacci
 
     # Inicializamos la lista de vértices
     vertices = []
 
-    # Primer bloque de 8 vértices: (±1, ±tribonacci, ±1/tribonacci)
     vertices += [
-        (pow(-1, int(i/4)), tribonacci * pow(-1, int(i/2)), tribonacci_1 * pow(-1, i))
-        for i in range(8)
+        v for s1, s2, s3 in [(1, 1, 1), (-1, -1, 1), (-1, 1, -1), (1, -1, -1)]
+        for v in [(s1, s2 * t, s3 * t_1), (s1 * t, s2 * t_1, s3), (s1 * t_1, s2, s3 * t)]
     ]
 
-    # Segundo bloque de 8 vértices: (±1/tribonacci, ±1, ±tribonacci)
-    vertices += [
-        (tribonacci_1 * pow(-1, int(i/4)), pow(-1, int(i/2)), tribonacci * pow(-1, i))
-        for i in range(8)
-    ]
 
-    # Tercer bloque de 8 vértices: (±tribonacci, ±1/tribonacci, ±1)
     vertices += [
-        (tribonacci * pow(-1, int(i/4)), tribonacci_1 * pow(-1, int(i/2)), pow(-1, i))
-        for i in range(8)
+        v for s1, s2, s3 in [(-1, 1, 1), (1, -1, 1), (1, 1, -1), (-1, -1, -1)]
+        for v in [(s1, s2 * t_1, s3 * t), (s1 * t, s2, s3 * t_1), (s1 * t_1, s2 * t, s3)]
     ]
 
     # Devolvemos los 24 vértices generados

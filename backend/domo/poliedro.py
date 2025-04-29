@@ -1,9 +1,9 @@
 import numpy as np
 from scipy.spatial import distance
 from skspatial.objects import Points
+import matplotlib.pyplot as plt
 
 from domo.generacion_vertices_poliedro import *
-from domo.graficos import *
 
 # Definición de la clase Poliedro
 class Poliedro():
@@ -116,4 +116,50 @@ class Poliedro():
 
     # Método para dibujar el poliedro
     def dibujar(self, ids = False):
-        dibujar_poliedro(self.vertices, self.aristas, ids)
+        # Crear figura y ejes 3D
+        fig = plt.figure(figsize=(10, 8))
+        ax = fig.add_subplot(111, projection='3d')
+
+        # Extraer coordenadas x, y, z de todos los vértices
+        x = [v[0] for v in self.vertices]
+        y = [v[1] for v in self.vertices]
+        z = [v[2] for v in self.vertices]
+
+        # Dibujar los vértices
+        s = 50 if self.aristas else 100
+        ax.scatter(x, y, z, color='#00008B', s=s, label='Vértices')
+
+        # Dibujar las aristas si se proporcionan
+        if self.aristas:
+            for vertice_id, conexiones in self.aristas.items():
+                v1 = self.vertices[vertice_id]
+                for vecino_id in conexiones:
+                    if vertice_id < vecino_id:
+                        v2 = self.vertices[vecino_id]
+                        ax.plot([v1[0], v2[0]], [v1[1], v2[1]], [v1[2], v2[2]],
+                                color='#A0C8E0', linestyle='-', linewidth=1)
+
+        # Añadir etiquetas de identificadores si ids es True
+        if ids:
+            for idx, (xi, yi, zi) in enumerate(self.vertices):
+                ax.text(xi, yi, zi, str(idx), color='black', fontsize=20, ha='left', va='bottom')
+
+        # Configurar aspecto del gráfico
+        ax.set_box_aspect([1, 1, 1])
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z')
+        ax.set_title('Visualización 3D del Poliedro')
+
+        # Establecer límites de ejes en un cubo para mejor visualización
+        max_range = np.max([np.ptp(x), np.ptp(y), np.ptp(z)]) / 2.0
+        mid_x = np.mean([np.max(x), np.min(x)])
+        mid_y = np.mean([np.max(y), np.min(y)])
+        mid_z = np.mean([np.max(z), np.min(z)])
+
+        ax.set_xlim(mid_x - max_range, mid_x + max_range)
+        ax.set_ylim(mid_y - max_range, mid_y + max_range)
+        ax.set_zlim(mid_z - max_range, mid_z + max_range)
+
+        plt.tight_layout()
+        plt.show()
