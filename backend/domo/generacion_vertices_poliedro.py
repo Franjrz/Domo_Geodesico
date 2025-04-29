@@ -1,5 +1,6 @@
 from math import pow, sqrt
 from scipy.constants import golden as phi
+import numpy as np
 
 def __tetraedro():
     """
@@ -418,59 +419,6 @@ def __icosidodecaedro_truncado():
     # Devuelve los 120 vértices generados
     return vertices
 
-def __cubo_romo():
-    """
-    Genera las coordenadas de los 24 vértices del cubo romo (snub cube),
-    centrado en el origen, usando la constante tribonacci.
-
-    Estructura general:
-    - Se utilizan combinaciones de ±1, ±tribonacci y ±(1/tribonacci).
-    - Se generan 3 bloques de 8 vértices cada uno, permutando el orden
-      de los valores en las coordenadas (x, y, z).
-    - Los signos se alternan sistemáticamente para asegurar la simetría.
-
-    Retorna:
-        Lista de 24 tuplas (x, y, z) representando los vértices del cubo romo.
-    """
-
-    # Definimos las constantes: tribonacci y su inverso
-    t = 1.839286755214161    # Aproximación de la constante tribonacci
-    t_1 = 1 / t     # Inverso de la tribonacci
-
-    # Inicializamos la lista de vértices
-    vertices = []
-
-    vertices += [
-        v for s1, s2, s3 in [(1, 1, 1), (-1, -1, 1), (-1, 1, -1), (1, -1, -1)]
-        for v in [(s1, s2 * t, s3 * t_1), (s1 * t, s2 * t_1, s3), (s1 * t_1, s2, s3 * t)]
-    ]
-
-
-    vertices += [
-        v for s1, s2, s3 in [(-1, 1, 1), (1, -1, 1), (1, 1, -1), (-1, -1, -1)]
-        for v in [(s1, s2 * t_1, s3 * t), (s1 * t, s2, s3 * t_1), (s1 * t_1, s2 * t, s3)]
-    ]
-
-    # Devolvemos los 24 vértices generados
-    return vertices
-
-
-
-def __dodecaedro_romo():
-    phi_2 = phi/2
-    phi_1_2 = 1 / (2*phi)
-    vertices = []
-
-    vertices += [(pow(-1,int(i)), 0, 0) for i in range(2)]
-    vertices += [(0, pow(-1,int(i)), 0) for i in range(2)]
-    vertices += [(0, 0, pow(-1,int(i))) for i in range(2)]
-
-    vertices += [(phi_2 * pow(-1,int(i/4)), phi_1_2 * pow(-1,int(i/2)), 0.5 * pow(-1,i)) for i in range(8)]
-    vertices += [(phi_1_2 * pow(-1,int(i/4)), 0.5 * pow(-1,int(i/2)), phi_2 * pow(-1,i)) for i in range(8)]
-    vertices += [(0.5 * pow(-1,int(i/4)), phi_2 * pow(-1,int(i/2)), phi_1_2 * pow(-1,i)) for i in range(8)]
-
-    return vertices
-
 def __rombicuboctaedro():
     """
     Genera las coordenadas de los 24 vértices de un rombicuboctaedro regular,
@@ -556,14 +504,204 @@ def __rombicosidodecaedro():
     # Séptimo grupo de 4 vértices: (±(2+φ), 0, ±φ²)
     vertices += [(phi_2 * pow(-1, int(i/2)), 0, phi__2 * pow(-1, i)) for i in range(4)]
 
-    # Octavo grupo de 4 vértices: (0, ±2φ, ±(2+φ))
-    vertices += [(0, phi___2 * pow(-1, int(i/2)), phi_2 * pow(-1, i)) for i in range(4)]
+    # Octavo grupo de 4 vértices: (0, ±φ², ±(2+φ))
+    vertices += [(0, phi__2 * pow(-1, int(i/2)), phi_2 * pow(-1, i)) for i in range(4)]
 
-    # Noveno grupo de 4 vértices: (±2φ, ±(2+φ), 0)
-    vertices += [(phi___2 * pow(-1, int(i/2)), phi_2 * pow(-1, i), 0) for i in range(4)]
+    # Noveno grupo de 4 vértices: (±φ², ±(2+φ), 0)
+    vertices += [(phi__2 * pow(-1, int(i/2)), phi_2 * pow(-1, i), 0) for i in range(4)]
 
     # Devolvemos los 60 vértices generados
     return vertices
+
+def __cubo_romo_levogiro():
+    """
+    Genera las coordenadas de los 24 vértices del cubo romo levogiro(snub cube),
+    centrado en el origen, usando la constante tribonacci.
+
+    - Utiliza combinaciones de ±1, ±tribonacci y ±(1/tribonacci).
+    - Agrupa en dos bloques de vértices, variando los signos de las coordenadas.
+    - Dentro de cada bloque:
+        * Para cada combinación de signos, genera 3 vértices, permutando t, 1, y 1/t.
+    
+    Retorna:
+        Una lista de 24 tuplas (x, y, z), cada una representando un vértice del cubo romo.
+    """
+
+    # Definimos la constante tribonacci t ≈ 1.839...
+    t = 1.839286755214161
+    t_1 = 1 / t  # Inverso de tribonacci
+
+    vertices = []
+
+    # Primer bloque de signos específicos
+    vertices += [
+        v for s1, s2, s3 in [(1, 1, 1), (-1, -1, 1), (-1, 1, -1), (1, -1, -1)]
+        for v in [(s1, s2 * t, s3 * t_1), (s1 * t, s2 * t_1, s3), (s1 * t_1, s2, s3 * t)]
+    ]
+
+    # Segundo bloque de signos opuestos
+    vertices += [
+        v for s1, s2, s3 in [(-1, 1, 1), (1, -1, 1), (1, 1, -1), (-1, -1, -1)]
+        for v in [(s1, s2 * t_1, s3 * t), (s1 * t, s2, s3 * t_1), (s1 * t_1, s2 * t, s3)]
+    ]
+
+    return vertices
+
+def __cubo_romo_dextrogiro():
+    """
+    Genera las coordenadas de los 24 vértices del cubo romo dextrogiro(snub cube),
+    centrado en el origen.
+
+    Todas las componentes de todos los vértices invierten su signo para formar una imagen
+    especular de su contraparte levogira
+    
+    Retorna:
+        Una lista de 24 tuplas (x, y, z), cada una representando un vértice del cubo romo.
+    """
+
+    return [(-i[0], -i[1], -i[2]) for i in __cubo_romo_levogiro()]
+
+def __multiplicar(vectores, matriz, potencia):
+    """
+    Aplica una matriz elevada a una cierta potencia a una lista de vectores.
+
+    Args:
+        vectores: lista de vectores (x, y, z) como tuplas.
+        matriz: matriz 3x3 (numpy array) de rotación.
+        potencia: entero, número de veces que se multiplica la matriz por sí misma.
+
+    Retorna:
+        Lista de nuevos vectores resultantes de la transformación.
+    """
+    return [tuple(np.dot(np.array(vectores[i]), np.linalg.matrix_power(matriz, potencia))) for i in range(5)]
+
+def __rotation_matrix(axis, theta):
+    """
+    Genera la matriz de rotación de un ángulo theta (en radianes)
+    alrededor de un eje arbitrario dado.
+
+    Args:
+        axis: vector 3D que define el eje de rotación (no necesita estar normalizado).
+        theta: ángulo de rotación en radianes.
+
+    Retorna:
+        Matriz de rotación 3x3 como un numpy array.
+    """
+    axis = axis / np.linalg.norm(axis)  # Normalizamos el eje
+    ux, uy, uz = axis
+
+    cos_t = np.cos(theta)
+    sin_t = np.sin(theta)
+    one_c = 1 - cos_t
+
+    # Aplicamos la fórmula de Rodrigues
+    R = np.array([
+        [cos_t + ux**2 * one_c, ux*uy * one_c - uz*sin_t, ux*uz * one_c + uy*sin_t],
+        [uy*ux * one_c + uz*sin_t, cos_t + uy**2 * one_c, uy*uz * one_c - ux*sin_t],
+        [uz*ux * one_c - uy*sin_t, uz*uy * one_c + ux*sin_t, cos_t + uz**2 * one_c]
+    ])
+    return R
+
+def __dodecaedro_romo_levogiro():
+    """
+    Genera las coordenadas de los 60 vértices del dodecaedro romo levogiro(snub dodecahedron),
+    utilizando constantes especiales derivadas de la proporción áurea (φ) y xi.
+
+    Procedimiento:
+    - Define un punto base (x, y, z) basado en φ y ξ.
+    - Usa dos matrices M_1 (rotación 72°) y M_2 (ciclado de coordenadas).
+    - Usa rotaciones de 180° para construir el hemisferio opuesto.
+    - Construye:
+        * Cara base
+        * Primer cinturón de pentágonos adyacentes
+        * Segundo cinturón de triángulos adyacentes
+        * Cara opuesta (anti-base)
+
+    Retorna:
+        Lista de 60 vértices del dodecaedro romo.
+    """
+
+    xi = 0.943151259243882
+    xi_2 = pow(xi, 2)
+    phi_2 = pow(phi, 2)
+    phi_3 = pow(phi, 3)
+
+    # Punto inicial (x, y, z)
+    x = phi_2 * (1 - xi)
+    y = -phi_3 + phi*xi + 2*phi*xi_2
+    z = xi
+
+    # Matrices de rotación
+    M_1 = np.array([
+        [1/(2*phi), -phi/2, 0.5],
+        [phi/2, 0.5, 1/(2*phi)],
+        [-0.5, 1/(2*phi), phi/2]
+    ])
+    M_2 = np.array([
+        [0, 0, 1],
+        [1, 0, 0],
+        [0, 1, 0]
+    ])
+
+    # Rotación 180° respecto a un eje especial
+    R_180 = __rotation_matrix(np.array([1, -phi, 1]), np.pi)
+
+    vertices = []
+
+    # Cara base: aplicar potencias de M_1 al punto base
+    cara_base = [tuple(np.dot(np.array([x, y, z]), np.linalg.matrix_power(M_1, i))) for i in range(5)]
+
+    # Primer cinturón: girar la cara base por M_2
+    cara_primer_cinturon = __multiplicar(cara_base, M_2, 1)
+
+    # Primer hemisferio:
+    primer_cinturon = cara_primer_cinturon
+    for k in range(1, 5):
+        primer_cinturon += __multiplicar(cara_primer_cinturon, M_1, k)
+
+    primer_hemisferio = cara_base + primer_cinturon
+
+    # Vectores auxiliares para el segundo cinturón
+    vector_pentagono_primer_hemisferio = tuple(np.dot(np.array([0, 1, phi]), np.linalg.matrix_power(M_2, 1)))
+    vector_triangulo_primer_hemisferio = tuple(np.dot(np.array([1, 1, 1]),
+                                             np.linalg.matrix_power(__rotation_matrix(np.array(vector_pentagono_primer_hemisferio), np.pi * 2 / 5), 2)))
+
+    # Segundo cinturón
+    cara_segundo_cinturon = __multiplicar(cara_primer_cinturon,
+                                          __rotation_matrix(np.array(vector_triangulo_primer_hemisferio), np.pi * 2 / 3), 2)
+
+    segundo_cinturon = cara_segundo_cinturon
+    for k in range(1, 5):
+        segundo_cinturon += __multiplicar(cara_segundo_cinturon, M_1, k)
+
+    # Cara opuesta
+    vector_pentagono_segundo_hemisferio = tuple(np.dot(np.array(vector_pentagono_primer_hemisferio),
+                                                       np.linalg.matrix_power(__rotation_matrix(np.array(vector_triangulo_primer_hemisferio), np.pi * 2 / 3), 2)))
+    vector_triangulo_segundo_hemisferio = tuple(np.dot(np.array(vector_triangulo_primer_hemisferio),
+                                                       np.linalg.matrix_power(__rotation_matrix(np.array(vector_pentagono_segundo_hemisferio), np.pi * 2 / 5), 2)))
+
+    cara_anti_base = __multiplicar(segundo_cinturon[0:5],
+                                   __rotation_matrix(np.array(vector_triangulo_segundo_hemisferio), np.pi * 2 / 3), 2)
+
+    segundo_hemisferio = cara_anti_base + segundo_cinturon
+
+    vertices += primer_hemisferio + segundo_hemisferio
+
+    return vertices
+
+def __dodecaedro_romo_dextrogiro():
+    """
+    Genera las coordenadas de los 24 vértices del dodecaedro romo levogiro(snub cube),
+    centrado en el origen.
+
+    Todas las componentes de todos los vértices invierten su signo para formar una imagen
+    especular de su contraparte dextrogira
+    
+    Retorna:
+        Una lista de 24 tuplas (x, y, z), cada una representando un vértice del dodecaedro romo.
+    """
+
+    return [(-i[0], -i[1], -i[2]) for i in __dodecaedro_romo_levogiro()]
 
 poliedros = {"tetraedro": __tetraedro,
              "cubo": __cubo,
@@ -579,10 +717,12 @@ poliedros = {"tetraedro": __tetraedro,
              "icosaedro truncado": __icosaedro_truncado,
              "cuboctaedro truncado": __cuboctaedro_truncado,
              "icosidodecaedro truncado": __icosidodecaedro_truncado,
-             "cubo romo": __cubo_romo, # ARREGLAR
-             "dodecaedro romo": __dodecaedro_romo, # ARREGLAR
              "rombicuboctaedro": __rombicuboctaedro,
-             "rombicosidodecaedro": __rombicosidodecaedro}
+             "rombicosidodecaedro": __rombicosidodecaedro,
+             "cubo romo dextrogiro": __cubo_romo_dextrogiro,
+             "dodecaedro romo dextrogiro": __dodecaedro_romo_dextrogiro,
+             "cubo romo levogiro": __cubo_romo_levogiro,
+             "dodecaedro romo levogiro": __dodecaedro_romo_levogiro}
 
 poliedro_id = ["tetraedro", 
                 "cubo", 
@@ -598,10 +738,12 @@ poliedro_id = ["tetraedro",
                 "icosaedro truncado",
                 "cuboctaedro truncado",
                 "icosidodecaedro truncado",
-                "cubo romo",
-                "dodecaedro romo",
                 "rombicuboctaedro",
-                "rombicosidodecaedro"]
+                "rombicosidodecaedro",
+                "cubo romo dextrogiro",
+                "dodecaedro romo dextrogiro",
+                "cubo romo levogiro",
+                "dodecaedro romo levogiro"]
 
 forma_caras = {"tetraedro": [3], 
                 "cubo": [4], 
@@ -617,10 +759,12 @@ forma_caras = {"tetraedro": [3],
                 "icosaedro truncado": [5,6],
                 "cuboctaedro truncado": [4,6,8],
                 "icosidodecaedro truncado": [4,6,10],
-                "cubo romo": [3,4],
-                "dodecaedro romo": [3,5],
                 "rombicuboctaedro": [3,4],
-                "rombicosidodecaedro": [3,4,5]}
+                "rombicosidodecaedro": [3,4,5],
+                "cubo romo dextrogiro": [3,4],
+                "dodecaedro romo dextrogiro": [3,5],
+                "cubo romo levogiro": [3,4],
+                "dodecaedro romo levogiro": [3,5]}
 
 def generar_vertices(poliedro):
     return poliedros[poliedro]()

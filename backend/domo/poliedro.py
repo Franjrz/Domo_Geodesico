@@ -149,7 +149,7 @@ class Poliedro():
         ax.set_xlabel('X')
         ax.set_ylabel('Y')
         ax.set_zlabel('Z')
-        ax.set_title('Visualización 3D del Poliedro')
+        ax.set_title(self.semilla)
 
         # Establecer límites de ejes en un cubo para mejor visualización
         max_range = np.max([np.ptp(x), np.ptp(y), np.ptp(z)]) / 2.0

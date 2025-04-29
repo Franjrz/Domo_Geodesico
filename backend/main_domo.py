@@ -17,16 +17,17 @@ from domo.domo import *
 11: "icosaedro truncado",
 12: "cuboctaedro truncado",
 13: "icosidodecaedro truncado",
-14: "cubo romo",
-15: "dodecaedro romo",
-16: "rombicuboctaedro",
-17: "rombicosidodecaedro"
+14: "rombicuboctaedro",
+15: "rombicosidodecaedro",
+16: "cubo romo dextrogiro",
+17: "dodecaedro romo dextrogiro",
+18: "cubo romo levogiro",
+19: "dodecaedro romo levogiro"
 """
 
 if __name__ == "__main__":
-    # Probar de 0 a 13. 14, 15 y 17 tienen bugs
-    poliedro_semilla = poliedro_id[14]
-    frecuencia = 6
+    poliedro_semilla = poliedro_id[17]
+    frecuencia = 2
     tipo = 0
     radio = 4
     poliedro = Poliedro(poliedro_semilla, radio)
