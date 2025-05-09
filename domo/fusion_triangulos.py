@@ -100,23 +100,24 @@ def obtener_fila_izquierda_triacon(frecuencia, lado):
     """
     Genera una fila para el lado izquierdo en un patrón tipo triacontaedro.
 
-    Comienza con "lado_1" seguido de "lado_1_i" donde i recorre de 0 a (2^frecuencia - 2).
+    Comienza con "lado_1" seguido de "lado_1_i" donde i recorre de 0 a (2^(frecuencia - 1) - 1).
 
     Ejemplo para frecuencia=2, lado='A':
     -> ['A_1', 'A_1_0', 'A_1_1', 'A_1_2', 'A_1_3']
     """
-    return [str(lado) + "_1"] + [str(lado) + "_1_" + str(i) for i in range(2**frecuencia - 1)]
+    return [str(lado) + "_1"] + [str(lado) + "_1_" + str(i) for i in range(2**(frecuencia-1)-1)]
 
 def obtener_fila_derecha_triacon(frecuencia, lado):
     """
     Genera una fila para el lado derecho en un patrón tipo triacontaedro.
 
-    Comienza con "lado_0" seguido de "lado_2_i" donde i recorre de (2^frecuencia - 2) a 0.
+    Comienza con "lado_0" seguido de "lado_2_i" donde i recorre de (2^(frecuencia - 1) - 2) a 0.
 
     Ejemplo para frecuencia=2, lado='A':
     -> ['A_0', 'A_2_2', 'A_2_1', 'A_2_0']
     """
-    return [str(lado) + "_0"] + [str(lado) + "_2_" + str(i) for i in range(2**frecuencia - 2, -1, -1)]
+    print(frecuencia)
+    return [str(lado) + "_0"] + [str(lado) + "_2_" + str(i) for i in range(2**(frecuencia-1)-2, -1, -1)]
 
 generar_fila_derecha = [obtener_fila_derecha_alternado,
                         obtener_fila_derecha_punto_medio,
@@ -178,16 +179,17 @@ def fusionar_triangulos_base(frecuencia, lados, tipo):
     subcaras_base = generar_triangulacion_poligono(lados)
     
     # Genera el triángulo base con la frecuencia indicada
-    puntos_base, vertices_base, aristas_base = generar_triangulo_base[tipo](frecuencia)
+    puntos_base, vertices_base, aristas_base, vertices_aristas = generar_triangulo_base[tipo](frecuencia)
     
     # Si solo se pide un triángulo, devuelve directamente el triángulo base
     if lados == 3:
-        return puntos_base, vertices_base, aristas_base
+        return puntos_base, vertices_base, aristas_base, vertices_aristas
 
     # Transformar y renombrar elementos por caras
     puntos = {}
     vertices = []
     aristas = {}
+    nuevo_vertices_aristas = {}
     for i in range(len(subcaras_base)):
         # Transformar los puntos del triángulo base según las coordenadas baricéntricas
         # de la subcara actual
@@ -204,10 +206,18 @@ def fusionar_triangulos_base(frecuencia, lados, tipo):
         vertices += subvertices_base
         subaristas_base = renombrar_aristas(aristas_base, i)
         aristas = aristas | subaristas_base
+        
+        nuevo_vertices_aristas[(i, (i + 1) % lados)] =  [str(i) + "_" + id for id in vertices_aristas[(0,1)]]
+
+    for i in range(len(subcaras_base)):
+        nuevo_vertices_aristas[(i, (i + 1) % lados)][-1] = nuevo_vertices_aristas[((i + 1) % lados, (i + 2) % lados)][0]
+
+    vertices_aristas = nuevo_vertices_aristas
 
     # Conectar todos los puntos a un solo punto central
     tipos_id_punto_central = ["0_" + str(frecuencia) + "_0", "0_2", "0_2"]
     id_punto_central = tipos_id_punto_central[tipo]
+
 
     # Eliminar de los vértices del polígono al punto central
     vertices.remove(id_punto_central)
@@ -238,4 +248,4 @@ def fusionar_triangulos_base(frecuencia, lados, tipo):
             # j == len(ids_nodos_derecha)-1
             puntos, vertices, aristas = fusionar_par_puntos(puntos, vertices, aristas, id_derecha, id_izquierda)
     
-    return puntos, vertices, aristas
+    return puntos, vertices, aristas, vertices_aristas

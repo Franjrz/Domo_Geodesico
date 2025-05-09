@@ -55,8 +55,14 @@ def generar_triangulo_base_alternado(frecuencia):
             # Inicializar la lista de aristas para este punto
             aristas[punto_id] = a_derecha + a_arriba_derecha + a_arriba_izquierda + \
                 a_izquierda + a_debajo_izquierda + a_debajo_derecha
+            
+    vertices_aristas = {
+        (0,1): ["0_" + str(i) for i in range(frecuencia+1)],
+        (1,2): [str(i) + "_" + str(frecuencia-i) for i in range(frecuencia+1)],
+        (2,0): [str(i) + "_0" for i in reversed(range(frecuencia+1))]
+    }
     
-    return puntos, vertices, aristas
+    return puntos, vertices, aristas, vertices_aristas
 
 def subdividir_triangulo_punto_medio(ids_triangulo, puntos, id_contador):
     """
@@ -124,10 +130,16 @@ def generar_triangulo_base_punto_medio(frecuencia):
     
     # Inicializar diccionario de adyacencias
     adyacencias = {"0": ["1", "2"], "1": ["0", "2"], "2": ["0", "1"]}
+
+    vertices_aristas = {
+        (0,1): ["0"] + ["1"],
+        (1,2): ["1"] + ["2"],
+        (2,0): ["2"] + ["0"]
+    }
     
     # Si no hay subdivisiones, devolver directamente
     if frecuencia == 1:
-        return puntos, vertices, adyacencias
+        return puntos, vertices, adyacencias, vertices_aristas
     
     # Procesar cada nivel
     for _ in range(frecuencia-1):
@@ -156,7 +168,7 @@ def generar_triangulo_base_punto_medio(frecuencia):
     for punto_id in adyacencias:
         adyacencias[punto_id] = list(set(adyacencias[punto_id]))
     
-    return puntos, vertices, adyacencias
+    return puntos, vertices, adyacencias, vertices_aristas
 
 def generar_puntos_y_rectas_triangulo_triacon(frecuencia):
     """
@@ -389,7 +401,6 @@ def agregar_arista_si_no(aristas, id_pre, id_post):
         aristas[id_pre].append(id_post)
     return aristas
 
-
 def rellenar_aristas(aristas, id_pre, id_post):
     """
     Añade una arista bidireccional entre id_pre e id_post en el diccionario de aristas.
@@ -407,7 +418,6 @@ def rellenar_aristas(aristas, id_pre, id_post):
     aristas = agregar_arista_si_no(aristas, id_pre, id_post)
     aristas = agregar_arista_si_no(aristas, id_post, id_pre)
     return aristas
-
 
 def generar_triangulo_base_triacon(frecuencia):
     """
@@ -435,7 +445,12 @@ def generar_triangulo_base_triacon(frecuencia):
         aristas = {"0": ["1", "2"],
                    "1": ["0", "2"],
                    "2": ["0", "1"]}
-        return puntos, vertices, aristas
+        vertices_aristas = {
+            (0,1): ["0"] + ["1"],
+            (1,2): ["1"] + ["2"],
+            (2,0): ["2"] + ["0"]
+        }
+        return puntos, vertices, aristas, vertices_aristas
     
     # Calcular las intersecciones entre rectas
     puntos = calcular_intersecciones_triacon(vertices, puntos, rectas)
@@ -476,5 +491,11 @@ def generar_triangulo_base_triacon(frecuencia):
         
         # Asegurar que el último punto del lado anterior esté conectado al vértice
         aristas = agregar_arista_si_no(aristas, id_punto_anterior, id_punto)
+
+    vertices_aristas = {
+        (0,1): ["0"] + ["0_" + str(i) for i in range(frecuencia+1)] + ["1"],
+        (1,2): ["1"] + ["1_" + str(i) for i in range(frecuencia+1)] + ["2"],
+        (2,0): ["2"] + ["2_" + str(i) for i in range(frecuencia+1)] + ["0"]
+    }
     
-    return puntos, vertices, aristas
+    return puntos, vertices, aristas, vertices_aristas
