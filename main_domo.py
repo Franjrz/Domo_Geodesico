@@ -25,10 +25,31 @@ from domo.domo import *
 19: "dodecaedro romo levogiro"
 """
 
+particion = ["alternado","punto_medio","triacon"]
+
+def generar_nombre_archivo(c, semilla, tipo, frecuencia):
+    semilla_def = "_".join(p.capitalize() for p in semilla.split())
+    return f"{c}_{semilla_def}_{particion[tipo]}_frecuencia_{frecuencia}.gif"
+
 if __name__ == "__main__":
-    poliedro_semilla = poliedro_id[14]
-    frecuencia = 2
-    tipo = 0
-    radio = 4
-    domo = Domo(poliedro_semilla, frecuencia, tipo, radio)
-    domo.dibujar()
+    # poliedro_semilla = poliedro_id[0]
+    # frecuencia = 6
+    # tipo = 0
+    # radio = 4
+    # #bug para tipo 2 en combinar nodos
+    # domo = Domo(poliedro_semilla, frecuencia, tipo, radio)
+    # #domo.dibujar()
+    # domo.generar_video_rotacion()
+    c = 0
+    for i in range(20):
+        semilla = poliedro_id[i]
+        tipo = 0
+        for frecuencia in range(2, 7):
+            domo = Domo(semilla, frecuencia, tipo, 4)
+            domo.generar_video_rotacion(nombre_salida=generar_nombre_archivo(c, semilla, tipo, frecuencia))
+            c+=1
+        tipo = 1
+        for frecuencia in [2, 3]:
+            domo = Domo(semilla, frecuencia, tipo, 4)
+            domo.generar_video_rotacion(nombre_salida=generar_nombre_archivo(c, semilla, tipo, frecuencia))
+            c+=1

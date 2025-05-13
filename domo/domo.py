@@ -1,9 +1,15 @@
 
 from scipy.spatial import Delaunay
-from matplotlib.patches import Polygon
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+from matplotlib.animation import FuncAnimation, FFMpegWriter, PillowWriter
+import matplotlib.pyplot as plt
+import numpy as np
+import matplotlib.colors as mcolors
 
 from domo.poliedro import *
 from domo.fusion_triangulos import *
+
+particion = ["alternado","punto_medio","triacon"]
 
 class Domo():
     def __init__(self, semilla, frecuencia, tipo, radio):
@@ -194,6 +200,10 @@ class Domo():
 
         if len(lista1) != len(lista2):
             raise ValueError("Las listas deben tener el mismo número de elementos")
+        
+        # print(lista1)
+        # print(lista2)
+        # print(self.aristas)
         
         # Iterar sobre los pares de nodos correspondientes
         for i in range(len(lista1)):
@@ -394,3 +404,225 @@ class Domo():
 
         plt.tight_layout()
         plt.show()
+
+    def generar_rotaciones(self, n):
+        """
+        Calcula n rotaciones equidistantes (360°) alrededor del eje terrestre (inclinado 23.44°).
+
+        Retorna:
+        --------
+        List[np.ndarray]
+            Lista de arreglos Nx3 con los puntos rotados.
+        """
+        ids = list(self.puntos.keys())
+        coords = np.array([self.puntos[i] for i in ids])
+
+        inclinacion = np.radians(23.44)
+        eje_tierra = np.array([np.sin(inclinacion), 0, np.cos(inclinacion)])
+
+        def rot(theta):
+            return matriz_rotacion_eje(eje_tierra, theta)
+
+        angulos = np.linspace(0, 2*np.pi, n, endpoint=False)
+        rotadas = [coords @ rot(a).T for a in angulos]
+
+        return rotadas  # lista de arrays Nx3
+    
+    def calcular_colores_caras_rotadas(self, rotaciones, fuente_luz, color_base_rgb, min_intensidad=0.15, factor_distancia=0.45):
+        """
+        Calcula el color iluminado de cada cara en cada rotación del poliedro, 
+        ajustando la intensidad por distancia a la fuente de luz.
+
+        Parámetros:
+        -----------
+        rotaciones : list[np.ndarray]
+            Lista de matrices Nx3 con coordenadas rotadas por frame.
+        fuente_luz : np.ndarray
+            Posición fija de la fuente de luz.
+        color_base_rgb : np.ndarray or str
+            Color base RGB normalizado (o string hexadecimal).
+        min_intensidad : float
+            Intensidad mínima.
+        factor_distancia : float
+            Ponderador para cuánto afecta la distancia al brillo.
+        """
+        if isinstance(color_base_rgb, str):
+            color_base_rgb = np.array(mcolors.to_rgb(color_base_rgb))
+
+        colores_por_rotacion = []
+        puntos_ids = list(self.puntos.keys())
+        id_to_index = {pid: i for i, pid in enumerate(puntos_ids)}
+
+        for coords in rotaciones:
+            intensidades = []
+            distancias = []
+            colores_cara = []
+
+            for cara in self.caras:
+                vertices = [coords[id_to_index[vid]] for vid in cara]
+
+                # Normal e iluminación base (como tu versión original)
+                v1, v2, v3 = np.array(vertices[0]), np.array(vertices[1]), np.array(vertices[2])
+                normal = np.cross(v2 - v1, v3 - v1)
+                normal = normal / np.linalg.norm(normal)
+
+                centroide = np.mean([v1, v2, v3], axis=0)
+                vector_luz = fuente_luz - centroide
+
+                if np.dot(normal, vector_luz) < 0:
+                    normal = -normal  # Inversión como hacías antes
+
+                vector_luz = vector_luz / np.linalg.norm(vector_luz)
+                intensidad_base = np.clip(np.dot(normal, vector_luz), min_intensidad, 1.0)
+
+                # Calcular distancia
+                distancia = np.linalg.norm(fuente_luz - centroide)
+
+                intensidades.append(intensidad_base)
+                distancias.append(distancia)
+
+            # Normalizar distancias para ajustar brillo
+            distancias = np.array(distancias)
+            d_min, d_max = np.min(distancias), np.max(distancias)
+            d_norm = (distancias - d_min) / (d_max - d_min + 1e-8)  # evitar división por cero
+
+            # Aplicar corrección de intensidad por distancia
+            for i in range(len(self.caras)):
+                ajuste = 1.0 - factor_distancia * d_norm[i]
+                intensidad_final = intensidades[i] * ajuste
+                intensidad_final = np.clip(intensidad_final, min_intensidad, 1.0)
+
+                color = intensidad_final * color_base_rgb
+                colores_cara.append(color)
+
+            colores_por_rotacion.append(colores_cara)
+
+        return colores_por_rotacion
+
+    def generar_video_rotacion(self, pasos=120, elevacion=30, ids=False, alpha_caras=0.8, nombre_salida = "poliedro.gif"):
+        """
+        Genera un video animado del domo geodésico rotando con sombreado dinámico.
+
+        Parámetros:
+        -----------
+        pasos : int
+            Número de frames de rotación.
+        elevacion : float
+            Ángulo de cámara vertical.
+        ids : bool
+            Mostrar etiquetas de los vértices.
+        alpha_caras : float
+            Transparencia de las caras.
+        grados : float
+            Grados totales de rotación sobre el eje terrestre.
+        """
+        # === Configuración general ===
+        fig = plt.figure(figsize=(10, 8), facecolor='#1F1F1F')
+        ax = fig.add_subplot(111, projection='3d')
+        ax.set_facecolor('#1F1F1F')
+
+        # === Datos iniciales para escalado ===
+        coords = np.array(list(self.puntos.values()))
+        x, y, z = coords[:, 0], coords[:, 1], coords[:, 2]
+
+        max_range = np.max([np.ptp(x), np.ptp(y), np.ptp(z)]) / 2.0
+        mid_x = np.mean([np.max(x), np.min(x)])
+        mid_y = np.mean([np.max(y), np.min(y)])
+        mid_z = np.mean([np.max(z), np.min(z)])
+
+        # === Generar rotaciones e iluminación ===
+        rotaciones = self.generar_rotaciones(pasos)
+        fuente_luz = np.array([20, -30, 40])
+        color_base = "#73C0E2"
+
+        colores_por_frame = self.calcular_colores_caras_rotadas(
+            rotaciones=rotaciones,
+            fuente_luz=fuente_luz,
+            color_base_rgb=color_base
+        )
+
+        puntos_ids = list(self.puntos.keys())
+
+        def dibujar_escena(frame):
+            ax.clear()
+            ax.set_box_aspect([1, 1, 1])
+            ax.set_xlim(mid_x - max_range, mid_x + max_range)
+            ax.set_ylim(mid_y - max_range, mid_y + max_range)
+            ax.set_zlim(mid_z - max_range, mid_z + max_range)
+            ax.axis('off')
+
+            # === Título ===
+            semilla = " ".join(p.capitalize() for p in self.semilla.split())
+            particion_str = " ".join(particion[self.tipo].split("_"))
+            titulo = f"{semilla}\nPartición {particion_str}\nFrecuencia {self.frecuencia}"
+            ax.set_title(titulo, color="#F1F1F1")
+
+            # === Puntos rotados ===
+            puntos_rotados = rotaciones[frame]
+            id_to_coord = {pid: puntos_rotados[i] for i, pid in enumerate(puntos_ids)}
+
+            # === Aristas ===
+            for v1_id, vecinos in self.aristas.items():
+                v1 = id_to_coord[v1_id]
+                for v2_id in vecinos:
+                    if v1_id < v2_id:
+                        v2 = id_to_coord[v2_id]
+                        ax.plot([v1[0], v2[0]], [v1[1], v2[1]], [v1[2], v2[2]],
+                                color='#3E6576', linestyle='-', linewidth=1)
+
+            # === Caras ===
+            poly3d = []
+            for cara in self.caras:
+                vertices = [id_to_coord[vid] for vid in cara]
+                poly3d.append(vertices)
+
+            coleccion = Poly3DCollection(
+                poly3d,
+                facecolors=colores_por_frame[frame],
+                alpha=alpha_caras,
+                edgecolor='#3E6576',
+                linewidth=0.5
+            )
+            ax.add_collection3d(coleccion)
+
+            # === IDs opcionales ===
+            if ids:
+                delta = max_range * 0.02
+                for vid, (xi, yi, zi) in id_to_coord.items():
+                    ax.text(xi, yi, zi + delta, str(vid), color='#F1F1F1', fontsize=9,
+                            ha='left', va='bottom')
+
+            ax.view_init(elev=elevacion, azim=0)  # cámara fija
+
+        # === Animación ===
+        anim = FuncAnimation(fig, dibujar_escena, frames=pasos, interval=100)
+
+        try:
+            if nombre_salida.endswith(".mp4"):
+                writer = FFMpegWriter(fps=30)
+            elif nombre_salida.endswith(".gif"):
+                writer = PillowWriter(fps=15)
+            else:
+                raise ValueError("El archivo debe terminar en .mp4 o .gif")
+
+            anim.save(nombre_salida, writer=writer)
+            print(f"✅ Video guardado como {nombre_salida}")
+        except FileNotFoundError:
+            print("❌ No se encontró ffmpeg o pillow. ¿Instalaste FFMPEG o PIL?")
+        finally:
+            plt.close(fig)
+
+def matriz_rotacion_eje(v, theta):
+    """
+    Retorna la matriz de rotación 3x3 para rotar un ángulo theta (rad)
+    alrededor del eje unitario v (np.array de 3 elementos).
+    """
+    v = v / np.linalg.norm(v)
+    x, y, z = v
+    c, s = np.cos(theta), np.sin(theta)
+    C = 1 - c
+    return np.array([
+        [c + x*x*C,     x*y*C - z*s, x*z*C + y*s],
+        [y*x*C + z*s, c + y*y*C,     y*z*C - x*s],
+        [z*x*C - y*s, z*y*C + x*s, c + z*z*C    ]
+    ])

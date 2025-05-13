@@ -116,7 +116,6 @@ def obtener_fila_derecha_triacon(frecuencia, lado):
     Ejemplo para frecuencia=2, lado='A':
     -> ['A_0', 'A_2_2', 'A_2_1', 'A_2_0']
     """
-    print(frecuencia)
     return [str(lado) + "_0"] + [str(lado) + "_2_" + str(i) for i in range(2**(frecuencia-1)-2, -1, -1)]
 
 generar_fila_derecha = [obtener_fila_derecha_alternado,
